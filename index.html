@@ -186,6 +186,7 @@
       <div id="status" class="status">Pulsa “Iniciar cámara” para empezar.</div>
       <div class="row" style="margin-top:12px">
         <button id="startBtn">Iniciar cámara</button>
+        <button id="reloadBtn" class="secondary">Recargar</button>
         <button id="stopBtn" class="secondary" disabled>Parar cámara</button>
         <button id="manualBtn" class="secondary">Introducir código manual</button>
       </div>
@@ -263,6 +264,7 @@
     const video = document.getElementById("video");
     const statusEl = document.getElementById("status");
     const startBtn = document.getElementById("startBtn");
+    const reloadBtn = document.getElementById("reloadBtn");
     const stopBtn = document.getElementById("stopBtn");
     const manualBtn = document.getElementById("manualBtn");
     const resultCard = document.getElementById("resultCard");
@@ -486,6 +488,17 @@
 
     startBtn.addEventListener("click", startScanner);
 
+    reloadBtn.addEventListener("click", async () => {
+      setStatus("Actualizando productos desde la nube…");
+      try {
+        await loadProductsFromSupabase();
+        setStatus("Productos actualizados.");
+      } catch (error) {
+        console.error(error);
+        setStatus("No se pudo actualizar desde la nube.");
+      }
+    });
+
     stopBtn.addEventListener("click", () => {
       stopScanner();
       setStatus("Cámara parada.");
@@ -604,10 +617,22 @@
     });
 
     renderTableFromLocal();
+
+    async function refreshProductsSilently() {
+      try {
+        await loadProductsFromSupabase();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
     loadProductsFromSupabase().catch(error => {
       console.error(error);
       setStatus("No se pudo cargar Supabase. Puedes seguir usando la copia local.");
     });
+
+    // Actualización automática cada 5 segundos.
+    setInterval(refreshProductsSilently, 5000);
   </script>
 </body>
 </html>
