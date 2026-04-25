@@ -280,74 +280,323 @@
 
   <script>
     const STORAGE_KEY = "barcode_products_v1";
-
-    // SUPABASE CONFIG
     const SUPABASE_URL = "https://ttcyrlbgfrfsjiaxhpyy.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y3lybGJnZnJmc2ppYXhocHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTY3OTksImV4cCI6MjA5MjY5Mjc5OX0.cSVVmaQ2vtLZfc4aKr6yirzyaYCv3n4r4Z_5lho0Dzc";
 
-    const loginScreen = document.getElementById("loginScreen");
-    const appScreen = document.getElementById("appScreen");
-    const guestBtn = document.getElementById("guestBtn");
-    const loginBtn = document.getElementById("loginBtn");
-    const userInput = document.getElementById("userInput");
-    const passInput = document.getElementById("passInput");
-    const loginError = document.getElementById("loginError");
+    const $ = id => document.getElementById(id);
 
-    const video = document.getElementById("video");
-    const statusEl = document.getElementById("status");
-    const startBtn = document.getElementById("startBtn");
-    const reloadBtn = document.getElementById("reloadBtn");
-    const stopBtn = document.getElementById("stopBtn");
-    const manualBtn = document.getElementById("manualBtn");
-    const resultCard = document.getElementById("resultCard");
-    const createCard = document.getElementById("createCard");
-    const productName = document.getElementById("productName");
-    const productBarcode = document.getElementById("productBarcode");
-    const productPrice = document.getElementById("productPrice");
-    const scanAgainBtn = document.getElementById("scanAgainBtn");
-    const editBtn = document.getElementById("editBtn");
-    const productForm = document.getElementById("productForm");
-    const saveProductBtn = document.getElementById("saveProductBtn");
-    const barcodeInput = document.getElementById("barcodeInput");
-    const nameInput = document.getElementById("nameInput");
-    const priceInput = document.getElementById("priceInput");
-    const currencyInput = document.getElementById("currencyInput");
-    const cancelFormBtn = document.getElementById("cancelFormBtn");
-    const productsTable = document.getElementById("productsTable");
-    const formTitle = document.getElementById("formTitle");
-    const exportBtn = document.getElementById("exportBtn");
-    const importBtn = document.getElementById("importBtn");
-    const importFile = document.getElementById("importFile");
-
-    let userRole = null; // guest o admin
+    let userRole = null;
     let codeReader = null;
     let currentBarcode = null;
     let scanning = false;
 
-    window.enterGuest = function() {
-      startApp("guest");
-    };
+    function setStatus(text) {
+      const el = $("status");
+      if (el) el.textContent = text;
+    }
 
-    window.enterUser = function() {
-      const user = userInput.value.trim();
-      const pass = passInput.value.trim();
+    function enterGuest() {
+      userRole = "guest";
+      $("loginScreen").classList.add("hidden");
+      $("appScreen").classList.remove("hidden");
+      setStatus("Modo invitado: solo puedes escanear y ver productos.");
+      renderTableFromLocal();
+      loadProductsFromSupabase().catch(console.error);
+    }
+
+    function enterUser() {
+      const user = $("userInput").value.trim();
+      const pass = $("passInput").value.trim();
 
       if (user === "ALSARA" && pass === "alsara22") {
-        loginError.textContent = "";
-        startApp("admin");
+        userRole = "admin";
+        $("loginError").textContent = "";
+        $("loginScreen").classList.add("hidden");
+        $("appScreen").classList.remove("hidden");
+        setStatus("Modo usuario ALSARA.");
+        renderTableFromLocal();
+        loadProductsFromSupabase().catch(console.error);
       } else {
-        loginError.textContent = "Usuario o contraseña incorrectos.";
+        $("loginError").textContent = "Usuario o contraseña incorrectos.";
       }
-    };
+    }
 
-    function startApp(role) {
-      userRole = role;
-      loginScreen.classList.add("hidden");
-      appScreen.classList.remove("hidden");
-      setStatus(role === "admin" ? "Modo usuario ALSARA." : "Modo invitado: solo puedes escanear y ver productos.");
-      // Actualización automática cada 5 segundos, solo cuando ya se ha entrado.
+    window.enterGuest = enterGuest;
+    window.enterUser = enterUser;
+
+    function loadProducts() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveLocalProduct(product) {
+      const products = loadProducts();
+      products[product.barcode] = product;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+      renderTableFromLocal();
+    }
+
+    function normalizePrice(value) {
+      return String(value).trim().replace(",", ".");
+    }
+
+    function money(product) {
+      const price = Number(product.price);
+      if (Number.isNaN(price)) return `${product.price} ${product.currency}`;
+      return `${price.toFixed(2).replace(".", ",")} ${product.currency}`;
+    }
+
+    function hidePanels() {
+      $("resultCard").classList.add("hidden");
+      $("createCard").classList.add("hidden");
+    }
+
+    function showProduct(product) {
+      hidePanels();
+      currentBarcode = product.barcode;
+      $("productName").textContent = product.name;
+      $("productBarcode").textContent = `Código: ${product.barcode}`;
+      $("productPrice").textContent = money(product);
+      $("resultCard").classList.remove("hidden");
+      setStatus("Producto encontrado.");
+    }
+
+    function showCreateForm(barcode, product = null) {
+      if (userRole === "guest") {
+        hidePanels();
+        setStatus("Producto no encontrado. Modo invitado: no puedes crear productos.");
+        return;
+      }
+
+      hidePanels();
+      currentBarcode = barcode;
+      $("barcodeInput").value = barcode;
+      $("nameInput").value = product?.name || "";
+      $("priceInput").value = product?.price || "";
+      $("currencyInput").value = product?.currency || "€";
+      $("formTitle").textContent = product ? "Editar producto" : "Crear producto";
+      $("createCard").classList.remove("hidden");
+      setStatus(product ? "Editando producto." : "Producto no encontrado. Puedes crearlo.");
+    }
+
+    async function supabaseFetch(path, options = {}) {
+      const headers = {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+        ...(options.headers || {})
+      };
+
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+        ...options,
+        headers
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `Error Supabase ${res.status}`);
+      }
+
+      if (res.status === 204) return [];
+      return res.json();
+    }
+
+    async function getProductFromSupabase(barcode) {
+      const data = await supabaseFetch(`products?barcode=eq.${encodeURIComponent(barcode)}&select=barcode,name,price,currency`);
+      return data[0] || null;
+    }
+
+    async function saveProductToSupabase(product) {
+      const data = await supabaseFetch("products?on_conflict=barcode", {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+        body: JSON.stringify(product)
+      });
+      return data[0] || product;
+    }
+
+    async function loadProductsFromSupabase() {
+      const data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc");
+      const products = {};
+      for (const product of data) products[product.barcode] = product;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+      renderTableFromLocal();
+    }
+
+    async function handleBarcode(code) {
+      const barcode = String(code).trim();
+      if (!barcode) return;
+      currentBarcode = barcode;
+      hidePanels();
+      setStatus("Buscando producto…");
+
+      try {
+        const cloudProduct = await getProductFromSupabase(barcode);
+        if (cloudProduct) {
+          saveLocalProduct(cloudProduct);
+          showProduct(cloudProduct);
+          return;
+        }
+      } catch (error) {
+        console.error(error);
+      }
+
+      const localProduct = loadProducts()[barcode];
+      if (localProduct) showProduct(localProduct);
+      else showCreateForm(barcode);
+    }
+
+    async function startScanner() {
+      hidePanels();
+      setStatus("Solicitando acceso a la cámara…");
+
+      try {
+        codeReader = new ZXing.BrowserMultiFormatReader();
+        scanning = true;
+        $("startBtn").disabled = true;
+        $("stopBtn").disabled = false;
+
+        const constraints = { video: { facingMode: { ideal: "environment" } } };
+        setStatus("Escaneando… apunta al código de barras.");
+
+        codeReader.decodeFromConstraints(constraints, $("video"), (result, error) => {
+          if (result && scanning) {
+            if (navigator.vibrate) navigator.vibrate(120);
+            stopScanner();
+            handleBarcode(result.text);
+          }
+        });
+      } catch (error) {
+        console.error(error);
+        setStatus("No se pudo iniciar la cámara. Revisa permisos o usa HTTPS/Safari.");
+        $("startBtn").disabled = false;
+        $("stopBtn").disabled = true;
+      }
+    }
+
+    function stopScanner() {
+      scanning = false;
+      if (codeReader) {
+        codeReader.reset();
+        codeReader = null;
+      }
+      $("startBtn").disabled = false;
+      $("stopBtn").disabled = true;
+    }
+
+    function renderTableFromLocal() {
+      const products = Object.values(loadProducts()).sort((a, b) => a.name.localeCompare(b.name));
+      const table = $("productsTable");
+      table.innerHTML = "";
+
+      if (products.length === 0) {
+        table.innerHTML = `<tr><td colspan="3" class="muted">Todavía no hay productos guardados.</td></tr>`;
+        return;
+      }
+
+      for (const product of products) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${product.barcode}</td><td>${product.name}</td><td>${money(product)}</td>`;
+        tr.addEventListener("click", () => showProduct(product));
+        table.appendChild(tr);
+      }
+    }
+
+    async function saveProductFromForm() {
+      if (userRole !== "admin") {
+        setStatus("Modo invitado: no puedes guardar productos.");
+        return;
+      }
+
+      const barcode = $("barcodeInput").value.trim();
+      const name = $("nameInput").value.trim();
+      const priceText = normalizePrice($("priceInput").value);
+      const currency = $("currencyInput").value;
+
+      if (!barcode || !name || !priceText) {
+        setStatus("Rellena todos los campos.");
+        return;
+      }
+
+      const priceNumber = Number(priceText);
+      if (Number.isNaN(priceNumber)) {
+        setStatus("El precio no es válido. Ejemplo correcto: 1,50");
+        return;
+      }
+
+      const product = { barcode, name, price: priceNumber, currency };
+      $("saveProductBtn").disabled = true;
+      saveLocalProduct(product);
+      showProduct(product);
+      setStatus("Producto guardado en esta página. Subiendo a Supabase…");
+
+      try {
+        const saved = await saveProductToSupabase(product);
+        saveLocalProduct(saved);
+        showProduct(saved);
+        setStatus("Producto guardado en Supabase correctamente.");
+      } catch (error) {
+        console.error(error);
+        setStatus("Guardado solo en esta página. Supabase falló: " + error.message);
+      } finally {
+        $("saveProductBtn").disabled = false;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      $("guestBtn")?.addEventListener("click", enterGuest);
+      $("loginBtn")?.addEventListener("click", enterUser);
+      $("passInput")?.addEventListener("keydown", event => { if (event.key === "Enter") enterUser(); });
+      $("startBtn")?.addEventListener("click", startScanner);
+      $("stopBtn")?.addEventListener("click", () => { stopScanner(); setStatus("Cámara parada."); });
+      $("manualBtn")?.addEventListener("click", () => { const barcode = prompt("Introduce el código de barras:"); if (barcode) handleBarcode(barcode); });
+      $("scanAgainBtn")?.addEventListener("click", startScanner);
+      $("editBtn")?.addEventListener("click", () => {
+        if (userRole === "guest") { setStatus("Modo invitado: no puedes editar productos."); return; }
+        if (!currentBarcode) return;
+        showCreateForm(currentBarcode, loadProducts()[currentBarcode]);
+      });
+      $("cancelFormBtn")?.addEventListener("click", () => { hidePanels(); setStatus("Formulario cancelado."); });
+      $("saveProductBtn")?.addEventListener("click", saveProductFromForm);
+      $("productForm")?.addEventListener("submit", event => { event.preventDefault(); saveProductFromForm(); });
+      $("reloadBtn")?.addEventListener("click", async () => {
+        setStatus("Actualizando productos desde la nube…");
+        try { await loadProductsFromSupabase(); setStatus("Productos actualizados."); }
+        catch (error) { console.error(error); setStatus("No se pudo actualizar desde la nube."); }
+      });
+      $("exportBtn")?.addEventListener("click", () => {
+        const data = JSON.stringify(loadProducts(), null, 2);
+        const blob = new Blob([data], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const date = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `copia-productos-${date}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus("Copia exportada. Guárdala en Archivos o iCloud Drive.");
+      });
+      $("importBtn")?.addEventListener("click", () => $("importFile").click());
+      $("importFile")?.addEventListener("change", async () => {
+        const file = $("importFile").files?.[0];
+        if (!file) return;
+        try {
+          const imported = JSON.parse(await file.text());
+          if (!imported || typeof imported !== "object" || Array.isArray(imported)) throw new Error("Formato incorrecto");
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...loadProducts(), ...imported }));
+          renderTableFromLocal();
+          setStatus("Copia importada correctamente.");
+        } catch { setStatus("No se pudo importar la copia. Revisa que sea un archivo JSON válido."); }
+        finally { $("importFile").value = ""; }
+      });
+    });
+
     setInterval(() => {
-      if (userRole) refreshProductsSilently();
+      if (userRole) loadProductsFromSupabase().catch(console.error);
     }, 5000);
   </script>
 </body>
