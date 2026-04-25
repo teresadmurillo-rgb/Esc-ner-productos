@@ -261,17 +261,25 @@ const SUPABASE_URL = "https://ttcyrlbgfrfsjiaxhpyy.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y3lybGJnZnJmc2ppYXhocHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTY3OTksImV4cCI6MjA5MjY5Mjc5OX0.cSVVmaQ2vtLZfc4aKr6yirzyaYCv3n4r4Z_5lho0Dzc";
 
 async function supabaseFetch(path, options = {}) {
+  const headers = {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    "Content-Type": "application/json",
+    Prefer: "return=representation",
+    ...(options.headers || {})
+  };
+
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation"
-    },
-    ...options
+    ...options,
+    headers
   });
 
-  if (!res.ok) throw new Error("Error Supabase");
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || `Error Supabase ${res.status}`);
+  }
+
+  if (res.status === 204) return [];
   return res.json();
 }
 
@@ -529,19 +537,28 @@ async function saveProduct(product) {
       }
 
       const product = { barcode, name, price: Number(price), currency };
-      setStatus("Guardando producto en la nube…");
 
+      // 1) Guardar SIEMPRE primero en el iPad/navegador.
+      const localProducts = loadProducts();
+      localProducts[barcode] = product;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(localProducts));
+      currentBarcode = barcode;
+      showProduct(product);
+      renderTable();
+      setStatus("Producto guardado en esta página. Subiendo a la nube…");
+
+      // 2) Luego intentar guardar en Supabase.
       try {
         const saved = await saveProduct(product);
         const products = loadProducts();
         products[barcode] = saved || product;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-        currentBarcode = barcode;
         await renderTable();
         showProduct(saved || product);
+        setStatus("Producto guardado en la nube correctamente.");
       } catch (error) {
         console.error(error);
-        setStatus("No se pudo guardar en Supabase. Revisa que RLS esté desactivado o que exista la tabla products.");
+        setStatus("Guardado en esta página, pero NO en Supabase. Revisa RLS, tabla products o columnas. Error: " + error.message);
       }
     });
 
