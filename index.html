@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Escáner Productos" />
+  <meta name="theme-color" content="#111827" />
+  <title>Escáner de productos</title>
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #111827;
+      background: #f3f4f6;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #111827 0%, #1f2937 45%, #f3f4f6 45%);
+    }
+
+    header {
+      color: white;
+      padding: 24px 20px 12px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: clamp(28px, 6vw, 46px);
+    }
+
+    header p {
+      margin: 8px 0 0;
+      color: #d1d5db;
+    }
+
+    main {
+      width: min(900px, 100%);
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.96);
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 18px 50px rgba(0,0,0,.22);
+      margin-bottom: 16px;
+    }
+
+    .scanner-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 22px;
+      background: #000;
+      aspect-ratio: 4 / 3;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .scan-frame {
+      position: absolute;
+      inset: 22% 12%;
+      border: 4px solid rgba(255,255,255,.92);
+      border-radius: 20px;
+      box-shadow: 0 0 0 999px rgba(0,0,0,.18);
+      pointer-events: none;
+    }
+
+    .status {
+      margin-top: 12px;
+      padding: 12px 14px;
+      background: #f9fafb;
+      border-radius: 14px;
+      color: #374151;
+      font-weight: 600;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 13px 18px;
+      font-size: 16px;
+      font-weight: 800;
+      background: #111827;
+      color: white;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    button.danger {
+      background: #991b1b;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 18px;
+      margin-top: 6px;
+      background: white;
+    }
+
+    label {
+      display: block;
+      font-weight: 800;
+      margin-top: 14px;
+    }
+
+    .product-name {
+      font-size: clamp(30px, 6vw, 54px);
+      line-height: 1.05;
+      margin: 6px 0;
+      font-weight: 900;
+    }
+
+    .price {
+      font-size: clamp(42px, 9vw, 78px);
+      font-weight: 950;
+      margin: 8px 0;
+    }
+
+    .muted { color: #6b7280; }
+    .hidden { display: none !important; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    th { background: #f9fafb; }
+
+    @media (display-mode: standalone) {
+      body { padding-top: env(safe-area-inset-top); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Escáner de productos</h1>
+    <p>Escanea un código, consulta el precio o crea el producto si no existe.</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="scanner-wrap">
+        <video id="video" muted playsinline></video>
+        <div class="scan-frame"></div>
+      </div>
+      <div id="status" class="status">Pulsa “Iniciar cámara” para empezar.</div>
+      <div class="row" style="margin-top:12px">
+        <button id="startBtn">Iniciar cámara</button>
+        <button id="stopBtn" class="secondary" disabled>Parar cámara</button>
+        <button id="manualBtn" class="secondary">Introducir código manual</button>
+      </div>
+    </section>
+
+    <section id="resultCard" class="card hidden">
+      <div class="muted">Producto encontrado</div>
+      <div id="productName" class="product-name"></div>
+      <div id="productBarcode" class="muted"></div>
+      <div id="productPrice" class="price"></div>
+      <div class="row">
+        <button id="scanAgainBtn">Escanear otro</button>
+        <button id="editBtn" class="secondary">Editar</button>
+      </div>
+    </section>
+
+    <section id="createCard" class="card hidden">
+      <h2 id="formTitle">Crear producto</h2>
+      <p class="muted">Este código no está guardado todavía.</p>
+      <form id="productForm">
+        <label>
+          Código de barras
+          <input id="barcodeInput" required />
+        </label>
+        <label>
+          Nombre del producto
+          <input id="nameInput" required placeholder="Ej. Leche entera 1L" />
+        </label>
+        <label>
+          Precio
+          <input id="priceInput" required inputmode="decimal" placeholder="Ej. 1,49" />
+        </label>
+        <label>
+          Moneda
+          <select id="currencyInput">
+            <option value="€">€ Euro</option>
+            <option value="$">$ Dólar</option>
+            <option value="£">£ Libra</option>
+          </select>
+        </label>
+        <div class="row" style="margin-top:16px">
+          <button type="submit">Guardar producto</button>
+          <button type="button" id="cancelFormBtn" class="secondary">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">Productos guardados</h2>
+        <button id="exportBtn" class="secondary">Exportar JSON</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Producto</th>
+            <th>Precio</th>
+          </tr>
+        </thead>
+        <tbody id="productsTable"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "barcode_products_v1";
+
+    const video = document.getElementById("video");
+    const statusEl = document.getElementById("status");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const manualBtn = document.getElementById("manualBtn");
+    const resultCard = document.getElementById("resultCard");
+    const createCard = document.getElementById("createCard");
+    const productName = document.getElementById("productName");
+    const productBarcode = document.getElementById("productBarcode");
+    const productPrice = document.getElementById("productPrice");
+    const scanAgainBtn = document.getElementById("scanAgainBtn");
+    const editBtn = document.getElementById("editBtn");
+    const productForm = document.getElementById("productForm");
+    const barcodeInput = document.getElementById("barcodeInput");
+    const nameInput = document.getElementById("nameInput");
+    const priceInput = document.getElementById("priceInput");
+    const currencyInput = document.getElementById("currencyInput");
+    const cancelFormBtn = document.getElementById("cancelFormBtn");
+    const productsTable = document.getElementById("productsTable");
+    const formTitle = document.getElementById("formTitle");
+    const exportBtn = document.getElementById("exportBtn");
+
+    let codeReader = null;
+    let currentBarcode = null;
+    let scanning = false;
+
+    function loadProducts() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveProducts(products) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+      renderTable();
+    }
+
+    function normalizePrice(value) {
+      return String(value).trim().replace(",", ".");
+    }
+
+    function money(product) {
+      const price = Number(product.price);
+      if (Number.isNaN(price)) return `${product.price} ${product.currency}`;
+      return `${price.toFixed(2).replace(".", ",")} ${product.currency}`;
+    }
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function hidePanels() {
+      resultCard.classList.add("hidden");
+      createCard.classList.add("hidden");
+    }
+
+    function showProduct(product) {
+      hidePanels();
+      productName.textContent = product.name;
+      productBarcode.textContent = `Código: ${product.barcode}`;
+      productPrice.textContent = money(product);
+      resultCard.classList.remove("hidden");
+      setStatus("Producto encontrado.");
+    }
+
+    function showCreateForm(barcode, product = null) {
+      hidePanels();
+      currentBarcode = barcode;
+      barcodeInput.value = barcode;
+      nameInput.value = product?.name || "";
+      priceInput.value = product?.price || "";
+      currencyInput.value = product?.currency || "€";
+      formTitle.textContent = product ? "Editar producto" : "Crear producto";
+      createCard.classList.remove("hidden");
+      setStatus(product ? "Editando producto." : "Producto no encontrado. Puedes crearlo.");
+      nameInput.focus();
+    }
+
+    function handleBarcode(code) {
+      const barcode = String(code).trim();
+      if (!barcode) return;
+
+      currentBarcode = barcode;
+      const products = loadProducts();
+      const product = products[barcode];
+
+      if (product) {
+        showProduct(product);
+      } else {
+        showCreateForm(barcode);
+      }
+    }
+
+    async function startScanner() {
+      hidePanels();
+      setStatus("Solicitando acceso a la cámara…");
+
+      try {
+        codeReader = new ZXing.BrowserMultiFormatReader();
+        scanning = true;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+
+        const devices = await codeReader.listVideoInputDevices();
+        const backCamera = devices.find(device => /back|rear|environment|trasera/i.test(device.label));
+        const selectedDeviceId = backCamera?.deviceId || devices[0]?.deviceId;
+
+        if (!selectedDeviceId) {
+          throw new Error("No se encontró ninguna cámara.");
+        }
+
+        setStatus("Escaneando… apunta al código de barras.");
+
+        codeReader.decodeFromVideoDevice(selectedDeviceId, video, (result, error) => {
+          if (result && scanning) {
+            if (navigator.vibrate) navigator.vibrate(120);
+            setStatus(`Código leído: ${result.text}`);
+            stopScanner();
+            handleBarcode(result.text);
+          }
+        });
+      } catch (error) {
+        setStatus("No se pudo iniciar la cámara. Revisa permisos o usa HTTPS/Safari.");
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        console.error(error);
+      }
+    }
+
+    function stopScanner() {
+      scanning = false;
+      if (codeReader) {
+        codeReader.reset();
+        codeReader = null;
+      }
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    function renderTable() {
+      const products = Object.values(loadProducts()).sort((a, b) => a.name.localeCompare(b.name));
+      productsTable.innerHTML = "";
+
+      if (products.length === 0) {
+        productsTable.innerHTML = `<tr><td colspan="3" class="muted">Todavía no hay productos guardados.</td></tr>`;
+        return;
+      }
+
+      for (const product of products) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${product.barcode}</td>
+          <td>${product.name}</td>
+          <td>${money(product)}</td>
+        `;
+        tr.addEventListener("click", () => showProduct(product));
+        productsTable.appendChild(tr);
+      }
+    }
+
+    startBtn.addEventListener("click", startScanner);
+    stopBtn.addEventListener("click", () => {
+      stopScanner();
+      setStatus("Cámara parada.");
+    });
+
+    manualBtn.addEventListener("click", () => {
+      const barcode = prompt("Introduce el código de barras:");
+      if (barcode) handleBarcode(barcode);
+    });
+
+    scanAgainBtn.addEventListener("click", startScanner);
+
+    editBtn.addEventListener("click", () => {
+      if (!currentBarcode) return;
+      const products = loadProducts();
+      showCreateForm(currentBarcode, products[currentBarcode]);
+    });
+
+    cancelFormBtn.addEventListener("click", () => {
+      hidePanels();
+      setStatus("Formulario cancelado.");
+    });
+
+    productForm.addEventListener("submit", event => {
+      event.preventDefault();
+
+      const barcode = barcodeInput.value.trim();
+      const name = nameInput.value.trim();
+      const price = normalizePrice(priceInput.value);
+      const currency = currencyInput.value;
+
+      if (!barcode || !name || !price) {
+        setStatus("Rellena todos los campos.");
+        return;
+      }
+
+      const products = loadProducts();
+      const product = { barcode, name, price, currency };
+      products[barcode] = product;
+      saveProducts(products);
+      currentBarcode = barcode;
+      showProduct(product);
+    });
+
+    exportBtn.addEventListener("click", () => {
+      const data = JSON.stringify(loadProducts(), null, 2);
+      const blob = new Blob([data], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "productos.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    renderTable();
+  </script>
+</body>
+</html>
