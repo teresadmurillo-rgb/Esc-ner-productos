@@ -256,51 +256,9 @@
   <script>
     const STORAGE_KEY = "barcode_products_v1";
 
-// SUPABASE CONFIG
-const SUPABASE_URL = "https://ttcyrlbgfrfsjiaxhpyy.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y3lybGJnZnJmc2ppYXhocHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTY3OTksImV4cCI6MjA5MjY5Mjc5OX0.cSVVmaQ2vtLZfc4aKr6yirzyaYCv3n4r4Z_5lho0Dzc";
-
-async function supabaseFetch(path, options = {}) {
-  const headers = {
-    apikey: SUPABASE_KEY,
-    Authorization: `Bearer ${SUPABASE_KEY}`,
-    "Content-Type": "application/json",
-    Prefer: "return=representation",
-    ...(options.headers || {})
-  };
-
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    ...options,
-    headers
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || `Error Supabase ${res.status}`);
-  }
-
-  if (res.status === 204) return [];
-  return res.json();
-}
-
-async function getProduct(barcode) {
-  const data = await supabaseFetch(`products?barcode=eq.${barcode}`);
-  return data[0] || null;
-}
-
-async function saveProduct(product) {
-  const data = await supabaseFetch("products?on_conflict=barcode", {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates,return=representation"
-    },
-    body: JSON.stringify(product)
-  });
-  return data[0];
-}
+    // SUPABASE CONFIG
+    const SUPABASE_URL = "https://ttcyrlbgfrfsjiaxhpyy.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y3lybGJnZnJmc2ppYXhocHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTY3OTksImV4cCI6MjA5MjY5Mjc5OX0.cSVVmaQ2vtLZfc4aKr6yirzyaYCv3n4r4Z_5lho0Dzc";
 
     const video = document.getElementById("video");
     const statusEl = document.getElementById("status");
@@ -330,8 +288,11 @@ async function saveProduct(product) {
     let currentBarcode = null;
     let scanning = false;
 
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
     function loadProducts() {
-      // Copia local de emergencia, pero la fuente principal será Supabase.
       try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
       } catch {
@@ -339,29 +300,21 @@ async function saveProduct(product) {
       }
     }
 
-    function saveProducts(products) {
+    function saveLocalProduct(product) {
+      const products = loadProducts();
+      products[product.barcode] = product;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-      renderTable();
+      renderTableFromLocal();
     }
 
-    async function loadProductsFromSupabase() {
-      const data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc");
-      const products = {};
-      for (const product of data) {
-        products[product.barcode] = product;
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-      return products;
+    function normalizePrice(value) {
+      return String(value).trim().replace(",", ".");
     }
 
     function money(product) {
       const price = Number(product.price);
       if (Number.isNaN(price)) return `${product.price} ${product.currency}`;
       return `${price.toFixed(2).replace(".", ",")} ${product.currency}`;
-    }
-
-    function setStatus(text) {
-      statusEl.textContent = text;
     }
 
     function hidePanels() {
@@ -371,6 +324,7 @@ async function saveProduct(product) {
 
     function showProduct(product) {
       hidePanels();
+      currentBarcode = product.barcode;
       productName.textContent = product.name;
       productBarcode.textContent = `Código: ${product.barcode}`;
       productPrice.textContent = money(product);
@@ -388,27 +342,80 @@ async function saveProduct(product) {
       formTitle.textContent = product ? "Editar producto" : "Crear producto";
       createCard.classList.remove("hidden");
       setStatus(product ? "Editando producto." : "Producto no encontrado. Puedes crearlo.");
-      nameInput.focus();
+    }
+
+    async function supabaseFetch(path, options = {}) {
+      const headers = {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+        ...(options.headers || {})
+      };
+
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+        ...options,
+        headers
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `Error Supabase ${res.status}`);
+      }
+
+      if (res.status === 204) return [];
+      return res.json();
+    }
+
+    async function getProductFromSupabase(barcode) {
+      const data = await supabaseFetch(`products?barcode=eq.${encodeURIComponent(barcode)}&select=barcode,name,price,currency`);
+      return data[0] || null;
+    }
+
+    async function saveProductToSupabase(product) {
+      const data = await supabaseFetch("products?on_conflict=barcode", {
+        method: "POST",
+        headers: {
+          Prefer: "resolution=merge-duplicates,return=representation"
+        },
+        body: JSON.stringify(product)
+      });
+      return data[0] || product;
+    }
+
+    async function loadProductsFromSupabase() {
+      const data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc");
+      const products = {};
+      for (const product of data) {
+        products[product.barcode] = product;
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+      renderTableFromLocal();
     }
 
     async function handleBarcode(code) {
       const barcode = String(code).trim();
       if (!barcode) return;
-
       currentBarcode = barcode;
       hidePanels();
-      setStatus("Buscando producto en la nube…");
+      setStatus("Buscando producto…");
 
       try {
-        const product = await getProduct(barcode);
-        if (product) {
-          showProduct(product);
-        } else {
-          showCreateForm(barcode);
+        const cloudProduct = await getProductFromSupabase(barcode);
+        if (cloudProduct) {
+          saveLocalProduct(cloudProduct);
+          showProduct(cloudProduct);
+          return;
         }
       } catch (error) {
         console.error(error);
-        setStatus("No se pudo conectar con Supabase. Revisa la tabla, permisos RLS o conexión.");
+      }
+
+      const localProduct = loadProducts()[barcode];
+      if (localProduct) {
+        showProduct(localProduct);
+      } else {
+        showCreateForm(barcode);
       }
     }
 
@@ -422,7 +429,6 @@ async function saveProduct(product) {
         startBtn.disabled = true;
         stopBtn.disabled = false;
 
-        // Forzar uso de cámara trasera en iPad/Safari
         const constraints = {
           video: {
             facingMode: { ideal: "environment" }
@@ -434,16 +440,15 @@ async function saveProduct(product) {
         codeReader.decodeFromConstraints(constraints, video, (result, error) => {
           if (result && scanning) {
             if (navigator.vibrate) navigator.vibrate(120);
-            setStatus(`Código leído: ${result.text}`);
             stopScanner();
             handleBarcode(result.text);
           }
         });
       } catch (error) {
+        console.error(error);
         setStatus("No se pudo iniciar la cámara. Revisa permisos o usa HTTPS/Safari.");
         startBtn.disabled = false;
         stopBtn.disabled = true;
-        console.error(error);
       }
     }
 
@@ -457,49 +462,29 @@ async function saveProduct(product) {
       stopBtn.disabled = true;
     }
 
-    async function renderTable() {
-      try {
-        const productsObject = await loadProductsFromSupabase();
-        const products = Object.values(productsObject).sort((a, b) => a.name.localeCompare(b.name));
-        productsTable.innerHTML = "";
+    function renderTableFromLocal() {
+      const products = Object.values(loadProducts()).sort((a, b) => a.name.localeCompare(b.name));
+      productsTable.innerHTML = "";
 
-        if (products.length === 0) {
-          productsTable.innerHTML = `<tr><td colspan="3" class="muted">Todavía no hay productos guardados.</td></tr>`;
-          return;
-        }
+      if (products.length === 0) {
+        productsTable.innerHTML = `<tr><td colspan="3" class="muted">Todavía no hay productos guardados.</td></tr>`;
+        return;
+      }
 
-        for (const product of products) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${product.barcode}</td>
-            <td>${product.name}</td>
-            <td>${money(product)}</td>
-          `;
-          tr.addEventListener("click", () => showProduct(product));
-          productsTable.appendChild(tr);
-        }
-      } catch (error) {
-        console.error(error);
-        const localProducts = Object.values(loadProducts()).sort((a, b) => a.name.localeCompare(b.name));
-        productsTable.innerHTML = "";
-        if (localProducts.length === 0) {
-          productsTable.innerHTML = `<tr><td colspan="3" class="muted">No se pudo cargar Supabase y no hay copia local.</td></tr>`;
-          return;
-        }
-        for (const product of localProducts) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${product.barcode}</td>
-            <td>${product.name}</td>
-            <td>${money(product)}</td>
-          `;
-          tr.addEventListener("click", () => showProduct(product));
-          productsTable.appendChild(tr);
-        }
+      for (const product of products) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${product.barcode}</td>
+          <td>${product.name}</td>
+          <td>${money(product)}</td>
+        `;
+        tr.addEventListener("click", () => showProduct(product));
+        productsTable.appendChild(tr);
       }
     }
 
     startBtn.addEventListener("click", startScanner);
+
     stopBtn.addEventListener("click", () => {
       stopScanner();
       setStatus("Cámara parada.");
@@ -514,8 +499,8 @@ async function saveProduct(product) {
 
     editBtn.addEventListener("click", () => {
       if (!currentBarcode) return;
-      const products = loadProducts();
-      showCreateForm(currentBarcode, products[currentBarcode]);
+      const product = loadProducts()[currentBarcode];
+      showCreateForm(currentBarcode, product);
     });
 
     cancelFormBtn.addEventListener("click", () => {
@@ -528,37 +513,41 @@ async function saveProduct(product) {
 
       const barcode = barcodeInput.value.trim();
       const name = nameInput.value.trim();
-      const price = normalizePrice(priceInput.value);
+      const priceText = normalizePrice(priceInput.value);
       const currency = currencyInput.value;
 
-      if (!barcode || !name || !price) {
+      if (!barcode || !name || !priceText) {
         setStatus("Rellena todos los campos.");
         return;
       }
 
-      const product = { barcode, name, price: Number(price), currency };
+      const priceNumber = Number(priceText);
+      if (Number.isNaN(priceNumber)) {
+        setStatus("El precio no es válido. Ejemplo correcto: 1,50");
+        return;
+      }
 
-      // 1) Guardar SIEMPRE primero en el iPad/navegador.
-      const localProducts = loadProducts();
-      localProducts[barcode] = product;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(localProducts));
-      currentBarcode = barcode;
+      const product = {
+        barcode,
+        name,
+        price: priceNumber,
+        currency
+      };
+
+      // Guardado local inmediato.
+      saveLocalProduct(product);
       showProduct(product);
-      renderTable();
-      setStatus("Producto guardado en esta página. Subiendo a la nube…");
+      setStatus("Producto guardado en esta página. Subiendo a Supabase…");
 
-      // 2) Luego intentar guardar en Supabase.
+      // Guardado en nube.
       try {
-        const saved = await saveProduct(product);
-        const products = loadProducts();
-        products[barcode] = saved || product;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-        await renderTable();
-        showProduct(saved || product);
-        setStatus("Producto guardado en la nube correctamente.");
+        const saved = await saveProductToSupabase(product);
+        saveLocalProduct(saved);
+        showProduct(saved);
+        setStatus("Producto guardado en Supabase correctamente.");
       } catch (error) {
         console.error(error);
-        setStatus("Guardado en esta página, pero NO en Supabase. Revisa RLS, tabla products o columnas. Error: " + error.message);
+        setStatus("Guardado solo en esta página. Supabase falló: " + error.message);
       }
     });
 
@@ -593,7 +582,8 @@ async function saveProduct(product) {
 
         const current = loadProducts();
         const merged = { ...current, ...imported };
-        saveProducts(merged);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        renderTableFromLocal();
         setStatus("Copia importada correctamente.");
       } catch (error) {
         setStatus("No se pudo importar la copia. Revisa que sea un archivo JSON válido.");
@@ -602,7 +592,11 @@ async function saveProduct(product) {
       }
     });
 
-    renderTable();
+    renderTableFromLocal();
+    loadProductsFromSupabase().catch(error => {
+      console.error(error);
+      setStatus("No se pudo cargar Supabase. Puedes seguir usando la copia local.");
+    });
   </script>
 </body>
 </html>
