@@ -176,7 +176,7 @@
     <h2 style="margin-top:0">Acceso</h2>
     <p class="muted">Elige cómo quieres entrar.</p>
 
-    <button id="guestBtn" style="width:100%; margin-top:10px">Entrar como invitado</button>
+    <button id="guestBtn" onclick="enterGuest()" style="width:100%; margin-top:10px">Entrar como invitado</button>
 
     <hr style="margin:22px 0; border:0; border-top:1px solid #e5e7eb">
 
@@ -190,7 +190,7 @@
       <input id="passInput" type="password" autocomplete="current-password" placeholder="Contraseña" />
     </label>
 
-    <button id="loginBtn" style="width:100%; margin-top:16px">Entrar como usuario</button>
+    <button id="loginBtn" onclick="enterUser()" style="width:100%; margin-top:16px">Entrar como usuario</button>
     <p id="loginError" class="muted" style="color:#991b1b; font-weight:800"></p>
   </div>
 
@@ -323,6 +323,22 @@
     let codeReader = null;
     let currentBarcode = null;
     let scanning = false;
+
+    window.enterGuest = function() {
+      startApp("guest");
+    };
+
+    window.enterUser = function() {
+      const user = userInput.value.trim();
+      const pass = passInput.value.trim();
+
+      if (user === "ALSARA" && pass === "alsara22") {
+        loginError.textContent = "";
+        startApp("admin");
+      } else {
+        loginError.textContent = "Usuario o contraseña incorrectos.";
+      }
+    };
 
     function startApp(role) {
       userRole = role;
