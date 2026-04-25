@@ -14,37 +14,30 @@
       color: #111827;
       background: #f3f4f6;
     }
-
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
       min-height: 100vh;
       background: linear-gradient(180deg, #111827 0%, #1f2937 45%, #f3f4f6 45%);
     }
-
     header {
       color: white;
       padding: 24px 20px 12px;
       text-align: center;
     }
-
     header h1 {
       margin: 0;
       font-size: clamp(28px, 6vw, 46px);
     }
-
     header p {
       margin: 8px 0 0;
       color: #d1d5db;
     }
-
     main {
       width: min(900px, 100%);
       margin: 0 auto;
       padding: 16px;
     }
-
     .card {
       background: rgba(255,255,255,0.96);
       border-radius: 24px;
@@ -52,7 +45,10 @@
       box-shadow: 0 18px 50px rgba(0,0,0,.22);
       margin-bottom: 16px;
     }
-
+    .login-card {
+      width: min(520px, calc(100% - 32px));
+      margin: 32px auto;
+    }
     .scanner-wrap {
       position: relative;
       overflow: hidden;
@@ -60,14 +56,12 @@
       background: #000;
       aspect-ratio: 4 / 3;
     }
-
     video {
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
     }
-
     .scan-frame {
       position: absolute;
       inset: 22% 12%;
@@ -76,7 +70,6 @@
       box-shadow: 0 0 0 999px rgba(0,0,0,.18);
       pointer-events: none;
     }
-
     .status {
       margin-top: 12px;
       padding: 12px 14px;
@@ -85,14 +78,12 @@
       color: #374151;
       font-weight: 600;
     }
-
     .row {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
       align-items: center;
     }
-
     button {
       border: 0;
       border-radius: 14px;
@@ -103,21 +94,14 @@
       color: white;
       cursor: pointer;
     }
-
     button.secondary {
       background: #e5e7eb;
       color: #111827;
     }
-
-    button.danger {
-      background: #991b1b;
-    }
-
     button:disabled {
       opacity: .5;
       cursor: not-allowed;
     }
-
     input, select {
       width: 100%;
       border: 1px solid #d1d5db;
@@ -127,29 +111,24 @@
       margin-top: 6px;
       background: white;
     }
-
     label {
       display: block;
       font-weight: 800;
       margin-top: 14px;
     }
-
     .product-name {
       font-size: clamp(30px, 6vw, 54px);
       line-height: 1.05;
       margin: 6px 0;
       font-weight: 900;
     }
-
     .price {
       font-size: clamp(42px, 9vw, 78px);
       font-weight: 950;
       margin: 8px 0;
     }
-
     .muted { color: #6b7280; }
     .hidden { display: none !important; }
-
     table {
       width: 100%;
       border-collapse: collapse;
@@ -157,26 +136,20 @@
       overflow: hidden;
       border-radius: 12px;
     }
-
     th, td {
       text-align: left;
       padding: 12px;
       border-bottom: 1px solid #e5e7eb;
     }
-
     th { background: #f9fafb; }
-
-    @media (display-mode: standalone) {
-      body { padding-top: env(safe-area-inset-top); }
-    }
   </style>
 </head>
 <body>
-  <div id="loginScreen" class="card" style="width:min(520px, calc(100% - 32px)); margin:32px auto;">
+  <section id="loginScreen" class="card login-card">
     <h2 style="margin-top:0">Acceso</h2>
     <p class="muted">Elige cómo quieres entrar.</p>
 
-    <button id="guestBtn" onclick="enterGuest()" style="width:100%; margin-top:10px">Entrar como invitado</button>
+    <button type="button" onclick="entrarInvitado()" style="width:100%; margin-top:10px">Entrar como invitado</button>
 
     <hr style="margin:22px 0; border:0; border-top:1px solid #e5e7eb">
 
@@ -190,150 +163,160 @@
       <input id="passInput" type="password" autocomplete="current-password" placeholder="Contraseña" />
     </label>
 
-    <button id="loginBtn" onclick="enterUser()" style="width:100%; margin-top:16px">Entrar como usuario</button>
-    <p id="loginError" class="muted" style="color:#991b1b; font-weight:800"></p>
-  </div>
+    <button type="button" onclick="entrarUsuario()" style="width:100%; margin-top:16px">Entrar como usuario</button>
+    <p id="loginError" style="color:#991b1b; font-weight:800"></p>
+  </section>
 
-  <div id="appScreen" class="hidden">
-  <header>
-    <h1>Escáner de productos</h1>
-    <p>Escanea un código, consulta el precio o crea el producto si no existe.</p>
-  </header>
+  <section id="appScreen" class="hidden">
+    <header>
+      <h1>Escáner de productos</h1>
+      <p id="modeText">Escanea un código, consulta el precio o crea el producto si no existe.</p>
+    </header>
 
-  <main>
-    <section class="card">
-      <div class="scanner-wrap">
-        <video id="video" muted playsinline></video>
-        <div class="scan-frame"></div>
-      </div>
-      <div id="status" class="status">Pulsa “Iniciar cámara” para empezar.</div>
-      <div class="row" style="margin-top:12px">
-        <button id="startBtn">Iniciar cámara</button>
-        <button id="reloadBtn" class="secondary">Actualizar</button>
-        <button id="stopBtn" class="secondary" disabled>Parar cámara</button>
-        <button id="manualBtn" class="secondary">Introducir código manual</button>
-      </div>
-    </section>
-
-    <section id="resultCard" class="card hidden">
-      <div class="muted">Producto encontrado</div>
-      <div id="productName" class="product-name"></div>
-      <div id="productBarcode" class="muted"></div>
-      <div id="productPrice" class="price"></div>
-      <div class="row">
-        <button id="scanAgainBtn">Escanear otro</button>
-        <button id="editBtn" class="secondary">Editar</button>
-      </div>
-    </section>
-
-    <section id="createCard" class="card hidden">
-      <h2 id="formTitle">Crear producto</h2>
-      <p class="muted">Este código no está guardado todavía.</p>
-      <form id="productForm">
-        <label>
-          Código de barras
-          <input id="barcodeInput" required />
-        </label>
-        <label>
-          Nombre del producto
-          <input id="nameInput" required placeholder="Ej. Leche entera 1L" />
-        </label>
-        <label>
-          Precio
-          <input id="priceInput" required inputmode="decimal" placeholder="Ej. 1,49" />
-        </label>
-        <label>
-          Moneda
-          <select id="currencyInput">
-            <option value="€">€ Euro</option>
-            <option value="$">$ Dólar</option>
-            <option value="£">£ Libra</option>
-          </select>
-        </label>
-        <div class="row" style="margin-top:16px">
-          <button type="button" id="saveProductBtn">Guardar producto</button>
-          <button type="button" id="cancelFormBtn" class="secondary">Cancelar</button>
+    <main>
+      <section class="card">
+        <div class="scanner-wrap">
+          <video id="video" muted playsinline></video>
+          <div class="scan-frame"></div>
         </div>
-      </form>
-    </section>
+        <div id="status" class="status">Pulsa “Iniciar cámara” para empezar.</div>
+        <div class="row" style="margin-top:12px">
+          <button id="startBtn" type="button">Iniciar cámara</button>
+          <button id="updateBtn" type="button" class="secondary">Actualizar</button>
+          <button id="stopBtn" type="button" class="secondary" disabled>Parar cámara</button>
+          <button id="manualBtn" type="button" class="secondary">Introducir código manual</button>
+          <button id="logoutBtn" type="button" class="secondary">Salir</button>
+          <button id="backLoginBtn" type="button" class="secondary">Volver al login</button>
+        </div>
+      </section>
 
-    <section class="card">
-      <div class="row" style="justify-content:space-between">
-        <h2 style="margin:0">Productos guardados</h2>
-        <button id="exportBtn" class="secondary">Exportar copia</button>
-        <button id="importBtn" class="secondary">Importar copia</button>
-        <input id="importFile" type="file" accept="application/json,.json" class="hidden" />
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Código</th>
-            <th>Producto</th>
-            <th>Precio</th>
-          </tr>
-        </thead>
-        <tbody id="productsTable"></tbody>
-      </table>
-    </section>
-  </main>
-  </div>
+      <section id="resultCard" class="card hidden">
+        <div class="muted">Producto encontrado</div>
+        <div id="productName" class="product-name"></div>
+        <div id="productBarcode" class="muted"></div>
+        <div id="productPrice" class="price"></div>
+        <div class="row">
+          <button id="scanAgainBtn" type="button">Escanear otro</button>
+          <button id="editBtn" type="button" class="secondary">Editar</button>
+        </div>
+      </section>
+
+      <section id="createCard" class="card hidden">
+        <h2 id="formTitle">Crear producto</h2>
+        <p class="muted">Este código no está guardado todavía.</p>
+        <form id="productForm">
+          <label>
+            Código de barras
+            <input id="barcodeInput" required />
+          </label>
+          <label>
+            Nombre del producto
+            <input id="nameInput" required placeholder="Ej. Leche entera 1L" />
+          </label>
+          <label>
+            Precio
+            <input id="priceInput" required inputmode="decimal" placeholder="Ej. 1,49" />
+          </label>
+          <label>
+            Moneda
+            <select id="currencyInput">
+              <option value="€">€ Euro</option>
+              <option value="$">$ Dólar</option>
+              <option value="£">£ Libra</option>
+            </select>
+          </label>
+          <div class="row" style="margin-top:16px">
+            <button type="button" id="saveProductBtn">Guardar producto</button>
+            <button type="button" id="cancelFormBtn" class="secondary">Cancelar</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Productos guardados</h2>
+          <div class="row">
+            <button id="exportBtn" type="button" class="secondary">Exportar copia</button>
+            <button id="importBtn" type="button" class="secondary">Importar copia</button>
+            <input id="importFile" type="file" accept="application/json,.json" class="hidden" />
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Producto</th>
+              <th>Precio</th>
+            </tr>
+          </thead>
+          <tbody id="productsTable"></tbody>
+        </table>
+      </section>
+    </main>
+  </section>
 
   <script>
     const STORAGE_KEY = "barcode_products_v1";
     const SUPABASE_URL = "https://ttcyrlbgfrfsjiaxhpyy.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y3lybGJnZnJmc2ppYXhocHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTY3OTksImV4cCI6MjA5MjY5Mjc5OX0.cSVVmaQ2vtLZfc4aKr6yirzyaYCv3n4r4Z_5lho0Dzc";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y3lybGJnZnJmc2ppYXhocHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTY3OTksImV4cCI6MjA5Mjc5OX0.cSVVmaQ2vtLZfc4aKr6yirzyaYCv3n4r4Z_5lho0Dzc";
 
-    const $ = id => document.getElementById(id);
+    var userRole = null;
+    var codeReader = null;
+    var currentBarcode = null;
+    var scanning = false;
 
-    let userRole = null;
-    let codeReader = null;
-    let currentBarcode = null;
-    let scanning = false;
+    function el(id) { return document.getElementById(id); }
 
     function setStatus(text) {
-      const el = $("status");
-      if (el) el.textContent = text;
+      if (el("status")) el("status").textContent = text;
     }
 
-    function enterGuest() {
+    function entrarInvitado() {
       userRole = "guest";
-      $("loginScreen").classList.add("hidden");
-      $("appScreen").classList.remove("hidden");
-      setStatus("Modo invitado: solo puedes escanear y ver productos.");
+      el("loginScreen").classList.add("hidden");
+      el("appScreen").classList.remove("hidden");
+      el("modeText").textContent = "Modo invitado: puedes escanear y ver productos, pero no crear ni editar.";
+      setStatus("Modo invitado activado.");
       renderTableFromLocal();
-      loadProductsFromSupabase().catch(console.error);
+      loadProductsFromSupabase().catch(function(error) { console.error(error); });
     }
 
-    function enterUser() {
-      const user = $("userInput").value.trim();
-      const pass = $("passInput").value.trim();
+    function entrarUsuario() {
+      var user = el("userInput").value.trim();
+      var pass = el("passInput").value.trim();
 
       if (user === "ALSARA" && pass === "alsara22") {
         userRole = "admin";
-        $("loginError").textContent = "";
-        $("loginScreen").classList.add("hidden");
-        $("appScreen").classList.remove("hidden");
-        setStatus("Modo usuario ALSARA.");
+        el("loginError").textContent = "";
+        el("loginScreen").classList.add("hidden");
+        el("appScreen").classList.remove("hidden");
+        el("modeText").textContent = "Modo usuario ALSARA: puedes escanear, crear y editar productos.";
+        setStatus("Modo usuario ALSARA activado.");
         renderTableFromLocal();
-        loadProductsFromSupabase().catch(console.error);
+        loadProductsFromSupabase().catch(function(error) { console.error(error); });
       } else {
-        $("loginError").textContent = "Usuario o contraseña incorrectos.";
+        el("loginError").textContent = "Usuario o contraseña incorrectos.";
       }
     }
 
-    window.enterGuest = enterGuest;
-    window.enterUser = enterUser;
+    function salir() {
+      stopScanner();
+      userRole = null;
+      el("appScreen").classList.add("hidden");
+      el("loginScreen").classList.remove("hidden");
+      el("passInput").value = "";
+    }
 
     function loadProducts() {
       try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-      } catch {
+      } catch (e) {
         return {};
       }
     }
 
     function saveLocalProduct(product) {
-      const products = loadProducts();
+      var products = loadProducts();
       products[product.barcode] = product;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
       renderTableFromLocal();
@@ -344,27 +327,27 @@
     }
 
     function money(product) {
-      const price = Number(product.price);
-      if (Number.isNaN(price)) return `${product.price} ${product.currency}`;
-      return `${price.toFixed(2).replace(".", ",")} ${product.currency}`;
+      var price = Number(product.price);
+      if (Number.isNaN(price)) return product.price + " " + product.currency;
+      return price.toFixed(2).replace(".", ",") + " " + product.currency;
     }
 
     function hidePanels() {
-      $("resultCard").classList.add("hidden");
-      $("createCard").classList.add("hidden");
+      el("resultCard").classList.add("hidden");
+      el("createCard").classList.add("hidden");
     }
 
     function showProduct(product) {
       hidePanels();
       currentBarcode = product.barcode;
-      $("productName").textContent = product.name;
-      $("productBarcode").textContent = `Código: ${product.barcode}`;
-      $("productPrice").textContent = money(product);
-      $("resultCard").classList.remove("hidden");
+      el("productName").textContent = product.name;
+      el("productBarcode").textContent = "Código: " + product.barcode;
+      el("productPrice").textContent = money(product);
+      el("resultCard").classList.remove("hidden");
       setStatus("Producto encontrado.");
     }
 
-    function showCreateForm(barcode, product = null) {
+    function showCreateForm(barcode, product) {
       if (userRole === "guest") {
         hidePanels();
         setStatus("Producto no encontrado. Modo invitado: no puedes crear productos.");
@@ -373,45 +356,45 @@
 
       hidePanels();
       currentBarcode = barcode;
-      $("barcodeInput").value = barcode;
-      $("nameInput").value = product?.name || "";
-      $("priceInput").value = product?.price || "";
-      $("currencyInput").value = product?.currency || "€";
-      $("formTitle").textContent = product ? "Editar producto" : "Crear producto";
-      $("createCard").classList.remove("hidden");
+      el("barcodeInput").value = barcode;
+      el("nameInput").value = product ? product.name : "";
+      el("priceInput").value = product ? product.price : "";
+      el("currencyInput").value = product ? product.currency : "€";
+      el("formTitle").textContent = product ? "Editar producto" : "Crear producto";
+      el("createCard").classList.remove("hidden");
       setStatus(product ? "Editando producto." : "Producto no encontrado. Puedes crearlo.");
     }
 
-    async function supabaseFetch(path, options = {}) {
-      const headers = {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-        ...(options.headers || {})
-      };
+    async function supabaseFetch(path, options) {
+      options = options || {};
+      var headers = options.headers || {};
+      headers.apikey = SUPABASE_KEY;
+      headers.Authorization = "Bearer " + SUPABASE_KEY;
+      headers["Content-Type"] = "application/json";
+      if (!headers.Prefer) headers.Prefer = "return=representation";
 
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-        ...options,
-        headers
+      var res = await fetch(SUPABASE_URL + "/rest/v1/" + path, {
+        method: options.method || "GET",
+        headers: headers,
+        body: options.body
       });
 
       if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || `Error Supabase ${res.status}`);
+        var errorText = await res.text();
+        throw new Error(errorText || "Error Supabase " + res.status);
       }
 
       if (res.status === 204) return [];
-      return res.json();
+      return await res.json();
     }
 
     async function getProductFromSupabase(barcode) {
-      const data = await supabaseFetch(`products?barcode=eq.${encodeURIComponent(barcode)}&select=barcode,name,price,currency`);
+      var data = await supabaseFetch("products?barcode=eq." + encodeURIComponent(barcode) + "&select=barcode,name,price,currency");
       return data[0] || null;
     }
 
     async function saveProductToSupabase(product) {
-      const data = await supabaseFetch("products?on_conflict=barcode", {
+      var data = await supabaseFetch("products?on_conflict=barcode", {
         method: "POST",
         headers: { Prefer: "resolution=merge-duplicates,return=representation" },
         body: JSON.stringify(product)
@@ -420,22 +403,24 @@
     }
 
     async function loadProductsFromSupabase() {
-      const data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc");
-      const products = {};
-      for (const product of data) products[product.barcode] = product;
+      var data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc");
+      var products = {};
+      for (var i = 0; i < data.length; i++) {
+        products[data[i].barcode] = data[i];
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
       renderTableFromLocal();
     }
 
     async function handleBarcode(code) {
-      const barcode = String(code).trim();
+      var barcode = String(code).trim();
       if (!barcode) return;
       currentBarcode = barcode;
       hidePanels();
       setStatus("Buscando producto…");
 
       try {
-        const cloudProduct = await getProductFromSupabase(barcode);
+        var cloudProduct = await getProductFromSupabase(barcode);
         if (cloudProduct) {
           saveLocalProduct(cloudProduct);
           showProduct(cloudProduct);
@@ -445,9 +430,9 @@
         console.error(error);
       }
 
-      const localProduct = loadProducts()[barcode];
+      var localProduct = loadProducts()[barcode];
       if (localProduct) showProduct(localProduct);
-      else showCreateForm(barcode);
+      else showCreateForm(barcode, null);
     }
 
     async function startScanner() {
@@ -457,13 +442,13 @@
       try {
         codeReader = new ZXing.BrowserMultiFormatReader();
         scanning = true;
-        $("startBtn").disabled = true;
-        $("stopBtn").disabled = false;
+        el("startBtn").disabled = true;
+        el("stopBtn").disabled = false;
 
-        const constraints = { video: { facingMode: { ideal: "environment" } } };
+        var constraints = { video: { facingMode: { ideal: "environment" } } };
         setStatus("Escaneando… apunta al código de barras.");
 
-        codeReader.decodeFromConstraints(constraints, $("video"), (result, error) => {
+        codeReader.decodeFromConstraints(constraints, el("video"), function(result, error) {
           if (result && scanning) {
             if (navigator.vibrate) navigator.vibrate(120);
             stopScanner();
@@ -473,8 +458,8 @@
       } catch (error) {
         console.error(error);
         setStatus("No se pudo iniciar la cámara. Revisa permisos o usa HTTPS/Safari.");
-        $("startBtn").disabled = false;
-        $("stopBtn").disabled = true;
+        el("startBtn").disabled = false;
+        el("stopBtn").disabled = true;
       }
     }
 
@@ -484,25 +469,30 @@
         codeReader.reset();
         codeReader = null;
       }
-      $("startBtn").disabled = false;
-      $("stopBtn").disabled = true;
+      if (el("startBtn")) el("startBtn").disabled = false;
+      if (el("stopBtn")) el("stopBtn").disabled = true;
     }
 
     function renderTableFromLocal() {
-      const products = Object.values(loadProducts()).sort((a, b) => a.name.localeCompare(b.name));
-      const table = $("productsTable");
+      var products = Object.values(loadProducts()).sort(function(a, b) {
+        return a.name.localeCompare(b.name);
+      });
+      var table = el("productsTable");
+      if (!table) return;
       table.innerHTML = "";
 
       if (products.length === 0) {
-        table.innerHTML = `<tr><td colspan="3" class="muted">Todavía no hay productos guardados.</td></tr>`;
+        table.innerHTML = '<tr><td colspan="3" class="muted">Todavía no hay productos guardados.</td></tr>';
         return;
       }
 
-      for (const product of products) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${product.barcode}</td><td>${product.name}</td><td>${money(product)}</td>`;
-        tr.addEventListener("click", () => showProduct(product));
-        table.appendChild(tr);
+      for (var i = 0; i < products.length; i++) {
+        (function(product) {
+          var tr = document.createElement("tr");
+          tr.innerHTML = "<td>" + product.barcode + "</td><td>" + product.name + "</td><td>" + money(product) + "</td>";
+          tr.addEventListener("click", function() { showProduct(product); });
+          table.appendChild(tr);
+        })(products[i]);
       }
     }
 
@@ -512,30 +502,30 @@
         return;
       }
 
-      const barcode = $("barcodeInput").value.trim();
-      const name = $("nameInput").value.trim();
-      const priceText = normalizePrice($("priceInput").value);
-      const currency = $("currencyInput").value;
+      var barcode = el("barcodeInput").value.trim();
+      var name = el("nameInput").value.trim();
+      var priceText = normalizePrice(el("priceInput").value);
+      var currency = el("currencyInput").value;
 
       if (!barcode || !name || !priceText) {
         setStatus("Rellena todos los campos.");
         return;
       }
 
-      const priceNumber = Number(priceText);
+      var priceNumber = Number(priceText);
       if (Number.isNaN(priceNumber)) {
         setStatus("El precio no es válido. Ejemplo correcto: 1,50");
         return;
       }
 
-      const product = { barcode, name, price: priceNumber, currency };
-      $("saveProductBtn").disabled = true;
+      var product = { barcode: barcode, name: name, price: priceNumber, currency: currency };
+      el("saveProductBtn").disabled = true;
       saveLocalProduct(product);
       showProduct(product);
       setStatus("Producto guardado en esta página. Subiendo a Supabase…");
 
       try {
-        const saved = await saveProductToSupabase(product);
+        var saved = await saveProductToSupabase(product);
         saveLocalProduct(saved);
         showProduct(saved);
         setStatus("Producto guardado en Supabase correctamente.");
@@ -543,60 +533,84 @@
         console.error(error);
         setStatus("Guardado solo en esta página. Supabase falló: " + error.message);
       } finally {
-        $("saveProductBtn").disabled = false;
+        el("saveProductBtn").disabled = false;
       }
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-      $("guestBtn")?.addEventListener("click", enterGuest);
-      $("loginBtn")?.addEventListener("click", enterUser);
-      $("passInput")?.addEventListener("keydown", event => { if (event.key === "Enter") enterUser(); });
-      $("startBtn")?.addEventListener("click", startScanner);
-      $("stopBtn")?.addEventListener("click", () => { stopScanner(); setStatus("Cámara parada."); });
-      $("manualBtn")?.addEventListener("click", () => { const barcode = prompt("Introduce el código de barras:"); if (barcode) handleBarcode(barcode); });
-      $("scanAgainBtn")?.addEventListener("click", startScanner);
-      $("editBtn")?.addEventListener("click", () => {
-        if (userRole === "guest") { setStatus("Modo invitado: no puedes editar productos."); return; }
+    function setupButtons() {
+      el("startBtn").onclick = startScanner;
+      el("stopBtn").onclick = function() { stopScanner(); setStatus("Cámara parada."); };
+      el("updateBtn").onclick = async function() {
+        setStatus("Actualizando productos desde la nube…");
+        try {
+          await loadProductsFromSupabase();
+          setStatus("Productos actualizados.");
+        } catch (error) {
+          console.error(error);
+          setStatus("No se pudo actualizar desde la nube.");
+        }
+      };
+      el("manualBtn").onclick = function() {
+        var barcode = prompt("Introduce el código de barras:");
+        if (barcode) handleBarcode(barcode);
+      };
+      el("logoutBtn").onclick = salir;
+      el("backLoginBtn").onclick = function() {
+        stopScanner();
+        userRole = null;
+        el("appScreen").classList.add("hidden");
+        el("loginScreen").classList.remove("hidden");
+        setStatus("Has vuelto a la pantalla de acceso.");
+      };
+      el("scanAgainBtn").onclick = startScanner;
+      el("editBtn").onclick = function() {
+        if (userRole === "guest") {
+          setStatus("Modo invitado: no puedes editar productos.");
+          return;
+        }
         if (!currentBarcode) return;
         showCreateForm(currentBarcode, loadProducts()[currentBarcode]);
-      });
-      $("cancelFormBtn")?.addEventListener("click", () => { hidePanels(); setStatus("Formulario cancelado."); });
-      $("saveProductBtn")?.addEventListener("click", saveProductFromForm);
-      $("productForm")?.addEventListener("submit", event => { event.preventDefault(); saveProductFromForm(); });
-      $("reloadBtn")?.addEventListener("click", async () => {
-        setStatus("Actualizando productos desde la nube…");
-        try { await loadProductsFromSupabase(); setStatus("Productos actualizados."); }
-        catch (error) { console.error(error); setStatus("No se pudo actualizar desde la nube."); }
-      });
-      $("exportBtn")?.addEventListener("click", () => {
-        const data = JSON.stringify(loadProducts(), null, 2);
-        const blob = new Blob([data], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        const date = new Date().toISOString().slice(0, 10);
+      };
+      el("saveProductBtn").onclick = saveProductFromForm;
+      el("cancelFormBtn").onclick = function() { hidePanels(); setStatus("Formulario cancelado."); };
+      el("productForm").onsubmit = function(event) { event.preventDefault(); saveProductFromForm(); };
+      el("exportBtn").onclick = function() {
+        var data = JSON.stringify(loadProducts(), null, 2);
+        var blob = new Blob([data], { type: "application/json" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        var date = new Date().toISOString().slice(0, 10);
         a.href = url;
-        a.download = `copia-productos-${date}.json`;
+        a.download = "copia-productos-" + date + ".json";
         a.click();
         URL.revokeObjectURL(url);
         setStatus("Copia exportada. Guárdala en Archivos o iCloud Drive.");
-      });
-      $("importBtn")?.addEventListener("click", () => $("importFile").click());
-      $("importFile")?.addEventListener("change", async () => {
-        const file = $("importFile").files?.[0];
+      };
+      el("importBtn").onclick = function() { el("importFile").click(); };
+      el("importFile").onchange = async function() {
+        var file = el("importFile").files[0];
         if (!file) return;
         try {
-          const imported = JSON.parse(await file.text());
+          var imported = JSON.parse(await file.text());
           if (!imported || typeof imported !== "object" || Array.isArray(imported)) throw new Error("Formato incorrecto");
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...loadProducts(), ...imported }));
+          var merged = Object.assign({}, loadProducts(), imported);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
           renderTableFromLocal();
           setStatus("Copia importada correctamente.");
-        } catch { setStatus("No se pudo importar la copia. Revisa que sea un archivo JSON válido."); }
-        finally { $("importFile").value = ""; }
-      });
-    });
+        } catch (error) {
+          setStatus("No se pudo importar la copia. Revisa que sea un archivo JSON válido.");
+        }
+        el("importFile").value = "";
+      };
+      el("passInput").onkeydown = function(event) {
+        if (event.key === "Enter") entrarUsuario();
+      };
+    }
 
-    setInterval(() => {
-      if (userRole) loadProductsFromSupabase().catch(console.error);
+    setupButtons();
+
+    setInterval(function() {
+      if (userRole) loadProductsFromSupabase().catch(function(error) { console.error(error); });
     }, 5000);
   </script>
 </body>
