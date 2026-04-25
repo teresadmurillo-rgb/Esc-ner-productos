@@ -359,17 +359,16 @@
         startBtn.disabled = true;
         stopBtn.disabled = false;
 
-        const devices = await codeReader.listVideoInputDevices();
-        const backCamera = devices.find(device => /back|rear|environment|trasera/i.test(device.label));
-        const selectedDeviceId = backCamera?.deviceId || devices[0]?.deviceId;
-
-        if (!selectedDeviceId) {
-          throw new Error("No se encontró ninguna cámara.");
-        }
+        // Forzar uso de cámara trasera en iPad/Safari
+        const constraints = {
+          video: {
+            facingMode: { ideal: "environment" }
+          }
+        };
 
         setStatus("Escaneando… apunta al código de barras.");
 
-        codeReader.decodeFromVideoDevice(selectedDeviceId, video, (result, error) => {
+        codeReader.decodeFromConstraints(constraints, video, (result, error) => {
           if (result && scanning) {
             if (navigator.vibrate) navigator.vibrate(120);
             setStatus(`Código leído: ${result.text}`);
