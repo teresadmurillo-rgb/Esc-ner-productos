@@ -281,8 +281,14 @@ async function getProduct(barcode) {
 }
 
 async function saveProduct(product) {
-  const data = await supabaseFetch("products", {
+  const data = await supabaseFetch("products?on_conflict=barcode", {
     method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=representation"
+    },
     body: JSON.stringify(product)
   });
   return data[0];
@@ -317,6 +323,7 @@ async function saveProduct(product) {
     let scanning = false;
 
     function loadProducts() {
+      // Copia local de emergencia, pero la fuente principal será Supabase.
       try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
       } catch {
@@ -329,8 +336,14 @@ async function saveProduct(product) {
       renderTable();
     }
 
-    function normalizePrice(value) {
-      return String(value).trim().replace(",", ".");
+    async function loadProductsFromSupabase() {
+      const data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc");
+      const products = {};
+      for (const product of data) {
+        products[product.barcode] = product;
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+      return products;
     }
 
     function money(product) {
@@ -370,18 +383,24 @@ async function saveProduct(product) {
       nameInput.focus();
     }
 
-    function handleBarcode(code) {
+    async function handleBarcode(code) {
       const barcode = String(code).trim();
       if (!barcode) return;
 
       currentBarcode = barcode;
-      const products = loadProducts();
-      const product = products[barcode];
+      hidePanels();
+      setStatus("Buscando producto en la nube…");
 
-      if (product) {
-        showProduct(product);
-      } else {
-        showCreateForm(barcode);
+      try {
+        const product = await getProduct(barcode);
+        if (product) {
+          showProduct(product);
+        } else {
+          showCreateForm(barcode);
+        }
+      } catch (error) {
+        console.error(error);
+        setStatus("No se pudo conectar con Supabase. Revisa la tabla, permisos RLS o conexión.");
       }
     }
 
@@ -430,24 +449,45 @@ async function saveProduct(product) {
       stopBtn.disabled = true;
     }
 
-    function renderTable() {
-      const products = Object.values(loadProducts()).sort((a, b) => a.name.localeCompare(b.name));
-      productsTable.innerHTML = "";
+    async function renderTable() {
+      try {
+        const productsObject = await loadProductsFromSupabase();
+        const products = Object.values(productsObject).sort((a, b) => a.name.localeCompare(b.name));
+        productsTable.innerHTML = "";
 
-      if (products.length === 0) {
-        productsTable.innerHTML = `<tr><td colspan="3" class="muted">Todavía no hay productos guardados.</td></tr>`;
-        return;
-      }
+        if (products.length === 0) {
+          productsTable.innerHTML = `<tr><td colspan="3" class="muted">Todavía no hay productos guardados.</td></tr>`;
+          return;
+        }
 
-      for (const product of products) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${product.barcode}</td>
-          <td>${product.name}</td>
-          <td>${money(product)}</td>
-        `;
-        tr.addEventListener("click", () => showProduct(product));
-        productsTable.appendChild(tr);
+        for (const product of products) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${product.barcode}</td>
+            <td>${product.name}</td>
+            <td>${money(product)}</td>
+          `;
+          tr.addEventListener("click", () => showProduct(product));
+          productsTable.appendChild(tr);
+        }
+      } catch (error) {
+        console.error(error);
+        const localProducts = Object.values(loadProducts()).sort((a, b) => a.name.localeCompare(b.name));
+        productsTable.innerHTML = "";
+        if (localProducts.length === 0) {
+          productsTable.innerHTML = `<tr><td colspan="3" class="muted">No se pudo cargar Supabase y no hay copia local.</td></tr>`;
+          return;
+        }
+        for (const product of localProducts) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${product.barcode}</td>
+            <td>${product.name}</td>
+            <td>${money(product)}</td>
+          `;
+          tr.addEventListener("click", () => showProduct(product));
+          productsTable.appendChild(tr);
+        }
       }
     }
 
@@ -475,7 +515,7 @@ async function saveProduct(product) {
       setStatus("Formulario cancelado.");
     });
 
-    productForm.addEventListener("submit", event => {
+    productForm.addEventListener("submit", async event => {
       event.preventDefault();
 
       const barcode = barcodeInput.value.trim();
@@ -488,12 +528,21 @@ async function saveProduct(product) {
         return;
       }
 
-      const products = loadProducts();
-      const product = { barcode, name, price, currency };
-      products[barcode] = product;
-      saveProducts(products);
-      currentBarcode = barcode;
-      showProduct(product);
+      const product = { barcode, name, price: Number(price), currency };
+      setStatus("Guardando producto en la nube…");
+
+      try {
+        const saved = await saveProduct(product);
+        const products = loadProducts();
+        products[barcode] = saved || product;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+        currentBarcode = barcode;
+        await renderTable();
+        showProduct(saved || product);
+      } catch (error) {
+        console.error(error);
+        setStatus("No se pudo guardar en Supabase. Revisa que RLS esté desactivado o que exista la tabla products.");
+      }
     });
 
     exportBtn.addEventListener("click", () => {
