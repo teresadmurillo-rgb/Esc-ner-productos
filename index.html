@@ -172,6 +172,29 @@
   </style>
 </head>
 <body>
+  <div id="loginScreen" class="card" style="width:min(520px, calc(100% - 32px)); margin:32px auto;">
+    <h2 style="margin-top:0">Acceso</h2>
+    <p class="muted">Elige cómo quieres entrar.</p>
+
+    <button id="guestBtn" style="width:100%; margin-top:10px">Entrar como invitado</button>
+
+    <hr style="margin:22px 0; border:0; border-top:1px solid #e5e7eb">
+
+    <label>
+      Usuario
+      <input id="userInput" autocomplete="username" placeholder="ALSARA" />
+    </label>
+
+    <label>
+      Contraseña
+      <input id="passInput" type="password" autocomplete="current-password" placeholder="Contraseña" />
+    </label>
+
+    <button id="loginBtn" style="width:100%; margin-top:16px">Entrar como usuario</button>
+    <p id="loginError" class="muted" style="color:#991b1b; font-weight:800"></p>
+  </div>
+
+  <div id="appScreen" class="hidden">
   <header>
     <h1>Escáner de productos</h1>
     <p>Escanea un código, consulta el precio o crea el producto si no existe.</p>
@@ -253,6 +276,7 @@
       </table>
     </section>
   </main>
+  </div>
 
   <script>
     const STORAGE_KEY = "barcode_products_v1";
@@ -260,6 +284,14 @@
     // SUPABASE CONFIG
     const SUPABASE_URL = "https://ttcyrlbgfrfsjiaxhpyy.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y3lybGJnZnJmc2ppYXhocHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTY3OTksImV4cCI6MjA5MjY5Mjc5OX0.cSVVmaQ2vtLZfc4aKr6yirzyaYCv3n4r4Z_5lho0Dzc";
+
+    const loginScreen = document.getElementById("loginScreen");
+    const appScreen = document.getElementById("appScreen");
+    const guestBtn = document.getElementById("guestBtn");
+    const loginBtn = document.getElementById("loginBtn");
+    const userInput = document.getElementById("userInput");
+    const passInput = document.getElementById("passInput");
+    const loginError = document.getElementById("loginError");
 
     const video = document.getElementById("video");
     const statusEl = document.getElementById("status");
@@ -287,352 +319,20 @@
     const importBtn = document.getElementById("importBtn");
     const importFile = document.getElementById("importFile");
 
+    let userRole = null; // guest o admin
     let codeReader = null;
     let currentBarcode = null;
     let scanning = false;
 
-    function setStatus(text) {
-      statusEl.textContent = text;
-    }
-
-    function loadProducts() {
-      try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-      } catch {
-        return {};
-      }
-    }
-
-    function saveLocalProduct(product) {
-      const products = loadProducts();
-      products[product.barcode] = product;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-      renderTableFromLocal();
-    }
-
-    function normalizePrice(value) {
-      return String(value).trim().replace(",", ".");
-    }
-
-    function money(product) {
-      const price = Number(product.price);
-      if (Number.isNaN(price)) return `${product.price} ${product.currency}`;
-      return `${price.toFixed(2).replace(".", ",")} ${product.currency}`;
-    }
-
-    function hidePanels() {
-      resultCard.classList.add("hidden");
-      createCard.classList.add("hidden");
-    }
-
-    function showProduct(product) {
-      hidePanels();
-      currentBarcode = product.barcode;
-      productName.textContent = product.name;
-      productBarcode.textContent = `Código: ${product.barcode}`;
-      productPrice.textContent = money(product);
-      resultCard.classList.remove("hidden");
-      setStatus("Producto encontrado.");
-    }
-
-    function showCreateForm(barcode, product = null) {
-      hidePanels();
-      currentBarcode = barcode;
-      barcodeInput.value = barcode;
-      nameInput.value = product?.name || "";
-      priceInput.value = product?.price || "";
-      currencyInput.value = product?.currency || "€";
-      formTitle.textContent = product ? "Editar producto" : "Crear producto";
-      createCard.classList.remove("hidden");
-      setStatus(product ? "Editando producto." : "Producto no encontrado. Puedes crearlo.");
-    }
-
-    async function supabaseFetch(path, options = {}) {
-      const headers = {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-        ...(options.headers || {})
-      };
-
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-        ...options,
-        headers
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || `Error Supabase ${res.status}`);
-      }
-
-      if (res.status === 204) return [];
-      return res.json();
-    }
-
-    async function getProductFromSupabase(barcode) {
-      const data = await supabaseFetch(`products?barcode=eq.${encodeURIComponent(barcode)}&select=barcode,name,price,currency`);
-      return data[0] || null;
-    }
-
-    async function saveProductToSupabase(product) {
-      const data = await supabaseFetch("products?on_conflict=barcode", {
-        method: "POST",
-        headers: {
-          Prefer: "resolution=merge-duplicates,return=representation"
-        },
-        body: JSON.stringify(product)
-      });
-      return data[0] || product;
-    }
-
-    async function loadProductsFromSupabase() {
-      const data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc");
-      const products = {};
-      for (const product of data) {
-        products[product.barcode] = product;
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-      renderTableFromLocal();
-    }
-
-    async function handleBarcode(code) {
-      const barcode = String(code).trim();
-      if (!barcode) return;
-      currentBarcode = barcode;
-      hidePanels();
-      setStatus("Buscando producto…");
-
-      try {
-        const cloudProduct = await getProductFromSupabase(barcode);
-        if (cloudProduct) {
-          saveLocalProduct(cloudProduct);
-          showProduct(cloudProduct);
-          return;
-        }
-      } catch (error) {
-        console.error(error);
-      }
-
-      const localProduct = loadProducts()[barcode];
-      if (localProduct) {
-        showProduct(localProduct);
-      } else {
-        showCreateForm(barcode);
-      }
-    }
-
-    async function startScanner() {
-      hidePanels();
-      setStatus("Solicitando acceso a la cámara…");
-
-      try {
-        codeReader = new ZXing.BrowserMultiFormatReader();
-        scanning = true;
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-
-        const constraints = {
-          video: {
-            facingMode: { ideal: "environment" }
-          }
-        };
-
-        setStatus("Escaneando… apunta al código de barras.");
-
-        codeReader.decodeFromConstraints(constraints, video, (result, error) => {
-          if (result && scanning) {
-            if (navigator.vibrate) navigator.vibrate(120);
-            stopScanner();
-            handleBarcode(result.text);
-          }
-        });
-      } catch (error) {
-        console.error(error);
-        setStatus("No se pudo iniciar la cámara. Revisa permisos o usa HTTPS/Safari.");
-        startBtn.disabled = false;
-        stopBtn.disabled = true;
-      }
-    }
-
-    function stopScanner() {
-      scanning = false;
-      if (codeReader) {
-        codeReader.reset();
-        codeReader = null;
-      }
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-    }
-
-    function renderTableFromLocal() {
-      const products = Object.values(loadProducts()).sort((a, b) => a.name.localeCompare(b.name));
-      productsTable.innerHTML = "";
-
-      if (products.length === 0) {
-        productsTable.innerHTML = `<tr><td colspan="3" class="muted">Todavía no hay productos guardados.</td></tr>`;
-        return;
-      }
-
-      for (const product of products) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${product.barcode}</td>
-          <td>${product.name}</td>
-          <td>${money(product)}</td>
-        `;
-        tr.addEventListener("click", () => showProduct(product));
-        productsTable.appendChild(tr);
-      }
-    }
-
-    startBtn.addEventListener("click", startScanner);
-
-    reloadBtn.addEventListener("click", async () => {
-      setStatus("Actualizando productos desde la nube…");
-      try {
-        await loadProductsFromSupabase();
-        setStatus("Productos actualizados.");
-      } catch (error) {
-        console.error(error);
-        setStatus("No se pudo actualizar desde la nube.");
-      }
-    });
-
-    stopBtn.addEventListener("click", () => {
-      stopScanner();
-      setStatus("Cámara parada.");
-    });
-
-    manualBtn.addEventListener("click", () => {
-      const barcode = prompt("Introduce el código de barras:");
-      if (barcode) handleBarcode(barcode);
-    });
-
-    scanAgainBtn.addEventListener("click", startScanner);
-
-    editBtn.addEventListener("click", () => {
-      if (!currentBarcode) return;
-      const product = loadProducts()[currentBarcode];
-      showCreateForm(currentBarcode, product);
-    });
-
-    cancelFormBtn.addEventListener("click", () => {
-      hidePanels();
-      setStatus("Formulario cancelado.");
-    });
-
-    async function saveProductFromForm() {
-      const barcode = barcodeInput.value.trim();
-      const name = nameInput.value.trim();
-      const priceText = normalizePrice(priceInput.value);
-      const currency = currencyInput.value;
-
-      if (!barcode || !name || !priceText) {
-        setStatus("Rellena todos los campos.");
-        return;
-      }
-
-      const priceNumber = Number(priceText);
-      if (Number.isNaN(priceNumber)) {
-        setStatus("El precio no es válido. Ejemplo correcto: 1,50");
-        return;
-      }
-
-      const product = {
-        barcode,
-        name,
-        price: priceNumber,
-        currency
-      };
-
-      saveProductBtn.disabled = true;
-      setStatus("Guardando producto…");
-
-      // Guardado local inmediato.
-      saveLocalProduct(product);
-      showProduct(product);
-      setStatus("Producto guardado en esta página. Subiendo a Supabase…");
-
-      // Guardado en nube.
-      try {
-        const saved = await saveProductToSupabase(product);
-        saveLocalProduct(saved);
-        showProduct(saved);
-        setStatus("Producto guardado en Supabase correctamente.");
-      } catch (error) {
-        console.error(error);
-        setStatus("Guardado solo en esta página. Supabase falló: " + error.message);
-      } finally {
-        saveProductBtn.disabled = false;
-      }
-    }
-
-    saveProductBtn.addEventListener("click", saveProductFromForm);
-
-    productForm.addEventListener("submit", event => {
-      event.preventDefault();
-      saveProductFromForm();
-    });
-
-    exportBtn.addEventListener("click", () => {
-      const data = JSON.stringify(loadProducts(), null, 2);
-      const blob = new Blob([data], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      const date = new Date().toISOString().slice(0, 10);
-      a.href = url;
-      a.download = `copia-productos-${date}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setStatus("Copia exportada. Guárdala en Archivos o iCloud Drive.");
-    });
-
-    importBtn.addEventListener("click", () => {
-      importFile.click();
-    });
-
-    importFile.addEventListener("change", async () => {
-      const file = importFile.files?.[0];
-      if (!file) return;
-
-      try {
-        const text = await file.text();
-        const imported = JSON.parse(text);
-
-        if (!imported || typeof imported !== "object" || Array.isArray(imported)) {
-          throw new Error("Formato incorrecto");
-        }
-
-        const current = loadProducts();
-        const merged = { ...current, ...imported };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-        renderTableFromLocal();
-        setStatus("Copia importada correctamente.");
-      } catch (error) {
-        setStatus("No se pudo importar la copia. Revisa que sea un archivo JSON válido.");
-      } finally {
-        importFile.value = "";
-      }
-    });
-
-    renderTableFromLocal();
-
-    async function refreshProductsSilently() {
-      try {
-        await loadProductsFromSupabase();
-      } catch (error) {
-        console.error(error);
-      }
-    }
-
-    loadProductsFromSupabase().catch(error => {
-      console.error(error);
-      setStatus("No se pudo cargar Supabase. Puedes seguir usando la copia local.");
-    });
-
-    // Actualización automática cada 5 segundos.
-    setInterval(refreshProductsSilently, 5000);
+    function startApp(role) {
+      userRole = role;
+      loginScreen.classList.add("hidden");
+      appScreen.classList.remove("hidden");
+      setStatus(role === "admin" ? "Modo usuario ALSARA." : "Modo invitado: solo puedes escanear y ver productos.");
+      // Actualización automática cada 5 segundos, solo cuando ya se ha entrado.
+    setInterval(() => {
+      if (userRole) refreshProductsSilently();
+    }, 5000);
   </script>
 </body>
 </html>
