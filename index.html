@@ -227,7 +227,7 @@
           </select>
         </label>
         <div class="row" style="margin-top:16px">
-          <button type="submit">Guardar producto</button>
+          <button type="button" id="saveProductBtn">Guardar producto</button>
           <button type="button" id="cancelFormBtn" class="secondary">Cancelar</button>
         </div>
       </form>
@@ -273,6 +273,7 @@
     const scanAgainBtn = document.getElementById("scanAgainBtn");
     const editBtn = document.getElementById("editBtn");
     const productForm = document.getElementById("productForm");
+    const saveProductBtn = document.getElementById("saveProductBtn");
     const barcodeInput = document.getElementById("barcodeInput");
     const nameInput = document.getElementById("nameInput");
     const priceInput = document.getElementById("priceInput");
@@ -508,9 +509,7 @@
       setStatus("Formulario cancelado.");
     });
 
-    productForm.addEventListener("submit", async event => {
-      event.preventDefault();
-
+    async function saveProductFromForm() {
       const barcode = barcodeInput.value.trim();
       const name = nameInput.value.trim();
       const priceText = normalizePrice(priceInput.value);
@@ -534,6 +533,9 @@
         currency
       };
 
+      saveProductBtn.disabled = true;
+      setStatus("Guardando producto…");
+
       // Guardado local inmediato.
       saveLocalProduct(product);
       showProduct(product);
@@ -548,7 +550,16 @@
       } catch (error) {
         console.error(error);
         setStatus("Guardado solo en esta página. Supabase falló: " + error.message);
+      } finally {
+        saveProductBtn.disabled = false;
       }
+    }
+
+    saveProductBtn.addEventListener("click", saveProductFromForm);
+
+    productForm.addEventListener("submit", event => {
+      event.preventDefault();
+      saveProductFromForm();
     });
 
     exportBtn.addEventListener("click", () => {
