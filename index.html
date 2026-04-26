@@ -278,7 +278,7 @@
       el("modeText").textContent = "Modo invitado: puedes escanear y ver productos, pero no crear ni editar.";
       setStatus("Modo invitado activado.");
       renderTableFromLocal();
-      loadProductsFromSupabase().catch(function(error) { console.error(error); });
+      loadProductsFromSupabase().catch(function(error) { console.error(error); setStatus("Error cargando Supabase: " + error.message); });
     }
 
     function entrarUsuario() {
@@ -293,7 +293,7 @@
         el("modeText").textContent = "Modo usuario ALSARA: puedes escanear, crear y editar productos.";
         setStatus("Modo usuario ALSARA activado.");
         renderTableFromLocal();
-        loadProductsFromSupabase().catch(function(error) { console.error(error); });
+        loadProductsFromSupabase().catch(function(error) { console.error(error); setStatus("Error cargando Supabase: " + error.message); });
       } else {
         el("loginError").textContent = "Usuario o contraseña incorrectos.";
       }
@@ -547,7 +547,7 @@
           setStatus("Productos actualizados.");
         } catch (error) {
           console.error(error);
-          setStatus("No se pudo actualizar desde la nube.");
+          setStatus("No se pudo actualizar desde la nube: " + error.message);
         }
       };
       el("manualBtn").onclick = function() {
@@ -610,7 +610,7 @@
     setupButtons();
 
     setInterval(function() {
-      if (userRole) loadProductsFromSupabase().catch(function(error) { console.error(error); });
+      if (userRole) loadProductsFromSupabase().catch(function(error) { console.error(error); setStatus("Error cargando Supabase: " + error.message); });
     }, 5000);
   </script>
 </body>
