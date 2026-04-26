@@ -404,13 +404,19 @@
     }
 
     async function loadProductsFromSupabase() {
-      var data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc");
+      // Cargamos una cantidad controlada para que Safari/iPad no se bloquee con miles de productos.
+      var data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc&limit=1000");
       var products = {};
+
       for (var i = 0; i < data.length; i++) {
-        products[data[i].barcode] = data[i];
+        if (data[i].barcode && data[i].name) {
+          products[data[i].barcode] = data[i];
+        }
       }
+
       localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
       renderTableFromLocal();
+      setStatus("Productos cargados desde Supabase: " + Object.keys(products).length);
     }
 
     async function handleBarcode(code) {
@@ -556,7 +562,13 @@
         setStatus("Probando conexión con Supabase…");
         try {
           var data = await supabaseFetch("products?select=barcode,name,price,currency&limit=5");
-          setStatus("Conexión OK. Productos encontrados: " + data.length + ". Primero: " + (data[0] ? data[0].name : "ninguno"));
+          var products = loadProducts();
+          for (var i = 0; i < data.length; i++) {
+            products[data[i].barcode] = data[i];
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+          renderTableFromLocal();
+          setStatus("Conexión OK. He mostrado productos de prueba: " + data.length + ". Primero: " + (data[0] ? data[0].name : "ninguno"));
         } catch (error) {
           console.error(error);
           setStatus("Error de conexión Supabase: " + error.message);
