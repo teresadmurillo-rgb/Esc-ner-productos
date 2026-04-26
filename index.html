@@ -404,10 +404,10 @@
     }
 
     async function loadProductsFromSupabase() {
-      // Cargamos una cantidad controlada para que Safari/iPad no se bloquee con miles de productos.
-      var data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc&limit=1000");
-      var products = {};
+      // Cargar directamente desde Supabase y pintar en la tabla.
+      var data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc&limit=200");
 
+      var products = {};
       for (var i = 0; i < data.length; i++) {
         if (data[i].barcode && data[i].name) {
           products[data[i].barcode] = data[i];
@@ -415,8 +415,28 @@
       }
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-      renderTableFromLocal();
-      setStatus("Productos cargados desde Supabase: " + Object.keys(products).length);
+      renderProductsArray(data);
+      setStatus("Productos cargados desde Supabase: " + data.length);
+    }
+
+    function renderProductsArray(products) {
+      var table = el("productsTable");
+      if (!table) return;
+      table.innerHTML = "";
+
+      if (!products || products.length === 0) {
+        table.innerHTML = '<tr><td colspan="3" class="muted">Supabase responde, pero no ha devuelto productos.</td></tr>';
+        return;
+      }
+
+      for (var i = 0; i < products.length; i++) {
+        (function(product) {
+          var tr = document.createElement("tr");
+          tr.innerHTML = "<td>" + product.barcode + "</td><td>" + product.name + "</td><td>" + money(product) + "</td>";
+          tr.addEventListener("click", function() { showProduct(product); });
+          table.appendChild(tr);
+        })(products[i]);
+      }
     }
 
     async function handleBarcode(code) {
@@ -568,7 +588,8 @@
           }
           localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
           renderTableFromLocal();
-          setStatus("Conexión OK. He mostrado productos de prueba: " + data.length + ". Primero: " + (data[0] ? data[0].name : "ninguno"));
+          renderProductsArray(data);
+          setStatus("Conexión OK. Mostrando prueba: " + data.length + ". Primero: " + (data[0] ? data[0].name : "ninguno"));
         } catch (error) {
           console.error(error);
           setStatus("Error de conexión Supabase: " + error.message);
