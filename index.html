@@ -637,18 +637,6 @@
         hidePanels();
         setStatus("Búsqueda limpiada.");
       };
-      el("searchBtn").onclick = function() {
-        searchAndShow(el("searchInput").value);
-      };
-      el("searchInput").onkeydown = function(event) {
-        if (event.key === "Enter") searchAndShow(el("searchInput").value);
-      };
-      el("clearSearchBtn").onclick = function() {
-        el("searchInput").value = "";
-        el("searchResults").innerHTML = "";
-        hidePanels();
-        setStatus("Búsqueda limpiada.");
-      };
       el("logoutBtn").onclick = salir;
       el("backLoginBtn").onclick = function() {
         stopScanner();
@@ -658,6 +646,7 @@
         setStatus("Has vuelto a la pantalla de acceso.");
       };
       el("scanAgainBtn").onclick = startScanner;
+      el("editPriceBtn").onclick = quickEditPrice;
       el("editBtn").onclick = function() {
         if (userRole === "guest") {
           setStatus("Modo invitado: no puedes editar productos.");
