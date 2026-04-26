@@ -183,6 +183,7 @@
         <div class="row" style="margin-top:12px">
           <button id="startBtn" type="button">Iniciar cámara</button>
           <button id="updateBtn" type="button" class="secondary">Actualizar</button>
+          <button id="testSupabaseBtn" type="button" class="secondary">Probar conexión</button>
           <button id="stopBtn" type="button" class="secondary" disabled>Parar cámara</button>
           <button id="manualBtn" type="button" class="secondary">Introducir código manual</button>
           <button id="logoutBtn" type="button" class="secondary">Salir</button>
@@ -544,12 +545,24 @@
         setStatus("Actualizando productos desde la nube…");
         try {
           await loadProductsFromSupabase();
-          setStatus("Productos actualizados.");
+          setStatus("Productos actualizados. Total en esta página: " + Object.keys(loadProducts()).length);
         } catch (error) {
           console.error(error);
           setStatus("No se pudo actualizar desde la nube: " + error.message);
         }
       };
+
+      el("testSupabaseBtn").onclick = async function() {
+        setStatus("Probando conexión con Supabase…");
+        try {
+          var data = await supabaseFetch("products?select=barcode,name,price,currency&limit=5");
+          setStatus("Conexión OK. Productos encontrados: " + data.length + ". Primero: " + (data[0] ? data[0].name : "ninguno"));
+        } catch (error) {
+          console.error(error);
+          setStatus("Error de conexión Supabase: " + error.message);
+        }
+      };
+
       el("manualBtn").onclick = function() {
         var barcode = prompt("Introduce el código de barras:");
         if (barcode) handleBarcode(barcode);
