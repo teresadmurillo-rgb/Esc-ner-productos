@@ -234,24 +234,20 @@
       </section>
 
       <section class="card">
-        <div class="row" style="justify-content:space-between">
-          <h2 style="margin:0">Productos guardados</h2>
-          <div class="row">
-            <button id="exportBtn" type="button" class="secondary">Exportar copia</button>
-            <button id="importBtn" type="button" class="secondary">Importar copia</button>
-            <input id="importFile" type="file" accept="application/json,.json" class="hidden" />
-          </div>
+        <h2 style="margin-top:0">Buscar producto</h2>
+        <p class="muted">Busca por código de barras o por nombre. No se carga la lista completa para que vaya más rápido.</p>
+        <label>
+          Código o nombre
+          <input id="searchInput" placeholder="Ej. 06060100000549 o COCA-COLA" />
+        </label>
+        <div class="row" style="margin-top:12px">
+          <button id="searchBtn" type="button">Buscar</button>
+          <button id="clearSearchBtn" type="button" class="secondary">Limpiar</button>
+          <button id="exportBtn" type="button" class="secondary">Exportar copia</button>
+          <button id="importBtn" type="button" class="secondary">Importar copia</button>
+          <input id="importFile" type="file" accept="application/json,.json" class="hidden" />
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Código</th>
-              <th>Producto</th>
-              <th>Precio</th>
-            </tr>
-          </thead>
-          <tbody id="productsTable"></tbody>
-        </table>
+        <div id="searchResults" style="margin-top:14px"></div>
       </section>
     </main>
   </section>
@@ -404,19 +400,47 @@
     }
 
     async function loadProductsFromSupabase() {
-      // Cargar directamente desde Supabase y pintar en la tabla.
-      var data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc&limit=50000");
+      // Ya no cargamos todos los productos en pantalla.
+      setStatus("Listo. Busca por código, nombre o escanea un producto.");
+    }
 
-      var products = {};
-      for (var i = 0; i < data.length; i++) {
-        if (data[i].barcode && data[i].name) {
-          products[data[i].barcode] = data[i];
-        }
+    async function searchProductsFromSupabase(query) {
+      var q = String(query || "").trim();
+      if (!q) return [];
+
+      // Si parece código, busca exacto por barcode. Si no, busca por nombre.
+      var isBarcode = /^[0-9]+$/.test(q);
+      var path;
+
+      if (isBarcode) {
+        path = "products?select=barcode,name,price,currency&barcode=eq." + encodeURIComponent(q) + "&limit=20";
+      } else {
+        path = "products?select=barcode,name,price,currency&name=ilike.*" + encodeURIComponent(q) + "*&order=name.asc&limit=20";
       }
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-      renderProductsArray(data);
-      setStatus("Productos cargados desde Supabase: " + data.length);
+      return await supabaseFetch(path);
+    }
+
+    function renderSearchResults(products) {
+      var box = el("searchResults");
+      if (!box) return;
+      box.innerHTML = "";
+
+      if (!products || products.length === 0) {
+        box.innerHTML = '<div class="status">No se ha encontrado ningún producto.</div>';
+        return;
+      }
+
+      for (var i = 0; i < products.length; i++) {
+        (function(product) {
+          var div = document.createElement("div");
+          div.className = "status";
+          div.style.cursor = "pointer";
+          div.innerHTML = "<strong>" + product.name + "</strong><br>Código: " + product.barcode + "<br>Precio: " + money(product);
+          div.onclick = function() { showProduct(product); };
+          box.appendChild(div);
+        })(products[i]);
+      }
     }
 
     function renderProductsArray(products) {
@@ -462,6 +486,33 @@
       else showCreateForm(barcode, null);
     }
 
+    async function searchAndShow(query) {
+      var q = String(query || "").trim();
+      if (!q) {
+        setStatus("Escribe un código o nombre para buscar.");
+        return;
+      }
+
+      hidePanels();
+      setStatus("Buscando: " + q + "…");
+
+      try {
+        var results = await searchProductsFromSupabase(q);
+        renderSearchResults(results);
+        if (results.length === 1) {
+          showProduct(results[0]);
+        } else if (results.length > 1) {
+          setStatus("Productos encontrados: " + results.length + ". Toca uno para verlo.");
+        } else {
+          if (/^[0-9]+$/.test(q)) showCreateForm(q, null);
+          else setStatus("No se ha encontrado ningún producto con ese nombre.");
+        }
+      } catch (error) {
+        console.error(error);
+        setStatus("Error buscando en Supabase: " + error.message);
+      }
+    }
+
     async function startScanner() {
       hidePanels();
       setStatus("Solicitando acceso a la cámara…");
@@ -501,26 +552,7 @@
     }
 
     function renderTableFromLocal() {
-      var products = Object.values(loadProducts()).sort(function(a, b) {
-        return a.name.localeCompare(b.name);
-      });
-      var table = el("productsTable");
-      if (!table) return;
-      table.innerHTML = "";
-
-      if (products.length === 0) {
-        table.innerHTML = '<tr><td colspan="3" class="muted">Todavía no hay productos guardados.</td></tr>';
-        return;
-      }
-
-      for (var i = 0; i < products.length; i++) {
-        (function(product) {
-          var tr = document.createElement("tr");
-          tr.innerHTML = "<td>" + product.barcode + "</td><td>" + product.name + "</td><td>" + money(product) + "</td>";
-          tr.addEventListener("click", function() { showProduct(product); });
-          table.appendChild(tr);
-        })(products[i]);
-      }
+      // Ya no mostramos la tabla completa de productos.
     }
 
     async function saveProductFromForm() {
@@ -568,14 +600,7 @@
       el("startBtn").onclick = startScanner;
       el("stopBtn").onclick = function() { stopScanner(); setStatus("Cámara parada."); };
       el("updateBtn").onclick = async function() {
-        setStatus("Actualizando productos desde la nube…");
-        try {
-          await loadProductsFromSupabase();
-          setStatus("Productos actualizados. Total en esta página: " + Object.keys(loadProducts()).length);
-        } catch (error) {
-          console.error(error);
-          setStatus("No se pudo actualizar desde la nube: " + error.message);
-        }
+        setStatus("Actualizado. Busca por código, nombre o escanea un producto.");
       };
 
       el("testSupabaseBtn").onclick = async function() {
@@ -597,8 +622,32 @@
       };
 
       el("manualBtn").onclick = function() {
-        var barcode = prompt("Introduce el código de barras:");
-        if (barcode) handleBarcode(barcode);
+        var query = prompt("Introduce código de barras o nombre del producto:");
+        if (query) searchAndShow(query);
+      };
+      el("searchBtn").onclick = function() {
+        searchAndShow(el("searchInput").value);
+      };
+      el("searchInput").onkeydown = function(event) {
+        if (event.key === "Enter") searchAndShow(el("searchInput").value);
+      };
+      el("clearSearchBtn").onclick = function() {
+        el("searchInput").value = "";
+        el("searchResults").innerHTML = "";
+        hidePanels();
+        setStatus("Búsqueda limpiada.");
+      };
+      el("searchBtn").onclick = function() {
+        searchAndShow(el("searchInput").value);
+      };
+      el("searchInput").onkeydown = function(event) {
+        if (event.key === "Enter") searchAndShow(el("searchInput").value);
+      };
+      el("clearSearchBtn").onclick = function() {
+        el("searchInput").value = "";
+        el("searchResults").innerHTML = "";
+        hidePanels();
+        setStatus("Búsqueda limpiada.");
       };
       el("logoutBtn").onclick = salir;
       el("backLoginBtn").onclick = function() {
