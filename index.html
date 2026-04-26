@@ -405,7 +405,7 @@
 
     async function loadProductsFromSupabase() {
       // Cargar directamente desde Supabase y pintar en la tabla.
-      var data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc&limit=200");
+      var data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc&limit=50000");
 
       var products = {};
       for (var i = 0; i < data.length; i++) {
