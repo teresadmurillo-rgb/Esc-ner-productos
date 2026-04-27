@@ -32,7 +32,7 @@
 
     header h1 {
       margin: 0;
-      font-size: clamp(34px, 8vw, 60px);
+      font-size: clamp(36px, 8vw, 64px);
       font-weight: 950;
       letter-spacing: 2px;
     }
@@ -40,7 +40,7 @@
     header p {
       margin: 8px 0 0;
       color: #fee2e2;
-      font-weight: 600;
+      font-weight: 700;
     }
 
     main {
@@ -162,7 +162,9 @@
     <h2 style="margin-top:0">Acceso</h2>
     <p class="muted">Elige cómo quieres entrar.</p>
 
-    <button type="button" onclick="entrarInvitado()" style="width:100%; margin-top:10px">Entrar como invitado</button>
+    <button type="button" onclick="entrarInvitado()" style="width:100%; margin-top:10px">
+      Entrar como invitado
+    </button>
 
     <hr style="margin:22px 0; border:0; border-top:1px solid #e5e7eb">
 
@@ -176,14 +178,17 @@
       <input id="passInput" type="password" autocomplete="current-password" placeholder="Contraseña" />
     </label>
 
-    <button type="button" onclick="entrarUsuario()" style="width:100%; margin-top:16px">Entrar como usuario</button>
+    <button type="button" onclick="entrarUsuario()" style="width:100%; margin-top:16px">
+      Entrar como usuario
+    </button>
+
     <p id="loginError" style="color:#991b1b; font-weight:800"></p>
   </section>
 
   <section id="appScreen" class="hidden">
     <header>
       <h1>ALSARA</h1>
-      <p id="modeText">Escanea o busca un producto.</p>
+      <p id="modeText">Escanea o busca productos por código o nombre.</p>
     </header>
 
     <main>
@@ -197,9 +202,22 @@
 
         <div class="row" style="margin-top:12px">
           <button id="startBtn" type="button">Iniciar cámara</button>
+          <button id="updateBtn" type="button" class="secondary">Actualizar</button>
           <button id="stopBtn" type="button" class="secondary" disabled>Parar cámara</button>
           <button id="manualBtn" type="button" class="secondary">Introducir código manual</button>
-          <button id="updateBtn" type="button" class="secondary">Actualizar</button>
+          <button id="backLoginBtn" type="button" class="secondary">Volver al login</button>
+        </div>
+      </section>
+
+      <section id="resultCard" class="card hidden">
+        <div class="muted">Producto encontrado</div>
+        <div id="productName" class="product-name"></div>
+        <div id="productBarcode" class="muted"></div>
+        <div id="productPrice" class="price"></div>
+
+        <div class="row">
+          <button id="scanAgainBtn" type="button">Escanear otro</button>
+          <button id="editBtn" type="button" class="secondary">Editar</button>
         </div>
       </section>
 
@@ -219,21 +237,9 @@
         <div id="searchResults" style="margin-top:14px"></div>
       </section>
 
-      <section id="resultCard" class="card hidden">
-        <div class="muted">Producto encontrado</div>
-        <div id="productName" class="product-name"></div>
-        <div id="productBarcode" class="muted"></div>
-        <div id="productPrice" class="price"></div>
-
-        <div class="row">
-          <button id="scanAgainBtn" type="button">Escanear otro</button>
-          <button id="editBtn" type="button" class="secondary">Editar</button>
-        </div>
-      </section>
-
       <section id="createCard" class="card hidden">
         <h2 id="formTitle">Crear producto</h2>
-        <p class="muted">Edita los campos que quieras. Puedes borrar manualmente el contenido.</p>
+        <p class="muted">Los campos aparecerán rellenos al editar un producto existente.</p>
 
         <form id="productForm">
           <label>
@@ -311,6 +317,18 @@
       }
     }
 
+    function volverLogin() {
+      stopScanner();
+      userRole = null;
+      currentBarcode = null;
+      hidePanels();
+      el("searchInput").value = "";
+      el("searchResults").innerHTML = "";
+      el("passInput").value = "";
+      el("appScreen").classList.add("hidden");
+      el("loginScreen").classList.remove("hidden");
+    }
+
     function loadProducts() {
       try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
@@ -331,9 +349,8 @@
 
     function money(product) {
       var price = Number(product.price);
-      var currency = product.currency || "€";
-      if (Number.isNaN(price)) return product.price + " " + currency;
-      return price.toFixed(2).replace(".", ",") + " " + currency;
+      if (Number.isNaN(price)) return product.price + " " + product.currency;
+      return price.toFixed(2).replace(".", ",") + " " + product.currency;
     }
 
     function hidePanels() {
@@ -343,43 +360,46 @@
 
     function showProduct(product) {
       hidePanels();
-      currentBarcode = product.barcode;
 
+      currentBarcode = product.barcode;
       saveLocalProduct(product);
 
       el("productName").textContent = product.name;
       el("productBarcode").textContent = "Código: " + product.barcode;
       el("productPrice").textContent = money(product);
-      el("resultCard").classList.remove("hidden");
 
+      el("resultCard").classList.remove("hidden");
       setStatus("Producto encontrado.");
+      el("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     function showCreateForm(barcode, product) {
       if (userRole === "guest") {
         hidePanels();
-        setStatus("Producto no encontrado. Modo invitado: no puedes crear productos.");
+        setStatus("Modo invitado: no puedes crear ni editar productos.");
         return;
       }
 
       hidePanels();
+
       currentBarcode = barcode;
 
       el("barcodeInput").value = product ? product.barcode : barcode;
       el("nameInput").value = product ? product.name : "";
       el("priceInput").value = product ? product.price : "";
-      el("currencyInput").value = product && product.currency ? product.currency : "€";
+      el("currencyInput").value = product ? product.currency : "€";
 
       el("formTitle").textContent = product ? "Editar producto" : "Crear producto";
       el("createCard").classList.remove("hidden");
 
       setStatus(product ? "Edita los campos que quieras." : "Producto no encontrado. Puedes crearlo.");
+      el("createCard").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     async function supabaseFetch(path, options) {
       options = options || {};
-      var headers = options.headers || {};
 
+      var headers = options.headers || {};
       headers.apikey = SUPABASE_KEY;
       headers.Authorization = "Bearer " + SUPABASE_KEY;
       headers["Content-Type"] = "application/json";
@@ -403,9 +423,24 @@
 
     async function getProductFromSupabase(barcode) {
       var data = await supabaseFetch(
-        "products?barcode=eq." + encodeURIComponent(barcode) + "&select=barcode,name,price,currency"
+        "products?barcode=eq." +
+        encodeURIComponent(barcode) +
+        "&select=barcode,name,price,currency"
       );
+
       return data[0] || null;
+    }
+
+    async function saveProductToSupabase(product) {
+      var data = await supabaseFetch("products?on_conflict=barcode", {
+        method: "POST",
+        headers: {
+          Prefer: "resolution=merge-duplicates,return=representation"
+        },
+        body: JSON.stringify(product)
+      });
+
+      return data[0] || product;
     }
 
     async function searchProductsFromSupabase(query) {
@@ -427,20 +462,10 @@
       );
     }
 
-    async function saveProductToSupabase(product) {
-      var data = await supabaseFetch("products?on_conflict=barcode", {
-        method: "POST",
-        headers: {
-          Prefer: "resolution=merge-duplicates,return=representation"
-        },
-        body: JSON.stringify(product)
-      });
-
-      return data[0] || product;
-    }
-
     function renderSearchResults(products) {
       var box = el("searchResults");
+      if (!box) return;
+
       box.innerHTML = "";
 
       if (!products || products.length === 0) {
@@ -476,16 +501,22 @@
       setStatus("Buscando producto…");
 
       try {
-        var product = await getProductFromSupabase(barcode);
+        var cloudProduct = await getProductFromSupabase(barcode);
 
-        if (product) {
-          showProduct(product);
-        } else {
-          showCreateForm(barcode, null);
+        if (cloudProduct) {
+          showProduct(cloudProduct);
+          return;
         }
       } catch (error) {
         console.error(error);
-        setStatus("Error buscando en Supabase: " + error.message);
+      }
+
+      var localProduct = loadProducts()[barcode];
+
+      if (localProduct) {
+        showProduct(localProduct);
+      } else {
+        showCreateForm(barcode, null);
       }
     }
 
@@ -528,6 +559,7 @@
       try {
         codeReader = new ZXing.BrowserMultiFormatReader();
         scanning = true;
+
         el("startBtn").disabled = true;
         el("stopBtn").disabled = false;
 
@@ -562,8 +594,8 @@
         codeReader = null;
       }
 
-      el("startBtn").disabled = false;
-      el("stopBtn").disabled = true;
+      if (el("startBtn")) el("startBtn").disabled = false;
+      if (el("stopBtn")) el("stopBtn").disabled = true;
     }
 
     async function saveProductFromForm() {
@@ -578,7 +610,7 @@
       var currency = el("currencyInput").value;
 
       if (!barcode || !name || !priceText) {
-        setStatus("Rellena todos los campos.");
+        setStatus("Rellena código, nombre y precio.");
         return;
       }
 
@@ -597,16 +629,17 @@
       };
 
       el("saveProductBtn").disabled = true;
-      saveLocalProduct(product);
-      showProduct(product);
-      setStatus("Guardando en Supabase…");
+      setStatus("Guardando producto…");
 
       try {
         var saved = await saveProductToSupabase(product);
+        saveLocalProduct(saved);
         showProduct(saved);
         setStatus("Producto guardado correctamente.");
       } catch (error) {
         console.error(error);
+        saveLocalProduct(product);
+        showProduct(product);
         setStatus("Guardado solo en esta página. Supabase falló: " + error.message);
       } finally {
         el("saveProductBtn").disabled = false;
@@ -622,13 +655,15 @@
       };
 
       el("updateBtn").onclick = function() {
-        setStatus("Actualizado. Busca o escanea un producto.");
+        setStatus("Actualizado. Busca por código, nombre o escanea un producto.");
       };
 
       el("manualBtn").onclick = function() {
         var query = prompt("Introduce código de barras o nombre del producto:");
         if (query) searchAndShow(query);
       };
+
+      el("backLoginBtn").onclick = volverLogin;
 
       el("searchBtn").onclick = function() {
         searchAndShow(el("searchInput").value);
@@ -668,7 +703,7 @@
 
         if (product) {
           showCreateForm(currentBarcode, product);
-          setStatus("Edita los campos que quieras y borra manualmente lo que necesites.");
+          setStatus("Edita los campos que quieras.");
         } else {
           setStatus("No se pudo cargar el producto para editar.");
         }
