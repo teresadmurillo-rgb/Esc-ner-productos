@@ -1,180 +1,703 @@
-}
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ALSARA</title>
-
-<style>
-body {
-  margin:0;
-  font-family: system-ui;
-  background: linear-gradient(180deg, #b91c1c 0%, #dc2626 45%, #f3f4f6 45%);
-}
-
-header {
-  text-align:center;
-  color:white;
-  padding:20px;
-}
-
-header h1 {
-  font-size:40px;
-  margin:0;
-}
-
-.card {
-  background:white;
-  margin:16px;
-  padding:16px;
-  border-radius:20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-}
-
-input {
-  width:100%;
-  padding:14px;
-  border-radius:12px;
-  border:1px solid #ddd;
-  font-size:18px;
-}
-
-button {
-  padding:14px;
-  border-radius:12px;
-  border:0;
-  font-weight:bold;
-  font-size:16px;
-}
-
-.primary {
-  background:#111;
-  color:white;
-}
-
-.secondary {
-  background:#eee;
-}
-
-.row {
-  display:flex;
-  gap:10px;
-  margin-top:10px;
-}
-
-.hidden { display:none; }
-
-.price {
-  font-size:50px;
-  font-weight:bold;
-}
-</style>
-</head>
-
-<body>
-
-<header>
-  <h1>ALSARA</h1>
-</header>
-
-<div class="card">
-  <input id="searchInput" placeholder="Buscar por código o nombre">
-  <div class="row">
-    <button class="primary" onclick="search()">Buscar</button>
-  </div>
-</div>
-
-<div id="resultCard" class="card hidden">
-  <h2 id="name"></h2>
-  <p id="barcode"></p>
-  <div id="price" class="price"></div>
-
-  <button class="primary" onclick="edit()">Editar</button>
-</div>
-
-<div id="editCard" class="card hidden">
-  <h3>Editar producto</h3>
-
-  <input id="editName">
-  <input id="editPrice">
-  <input id="editBarcode" disabled>
-
-  <div class="row">
-    <button class="primary" onclick="save()">Guardar</button>
-  </div>
-</div>
-
-<script>
-
-const URL = "https://ttcyrlbgfrfsjiaxhpyy.supabase.co";
-const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // tu key
-
-let product = null;
-
-async function api(path){
-  let r = await fetch(URL+"/rest/v1/"+path,{
-    headers:{
-      apikey:KEY,
-      Authorization:"Bearer "+KEY
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Escáner Productos" />
+  <meta name="theme-color" content="#111827" />
+  <title>Escáner de productos</title>
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #111827;
+      background: #f3f4f6;
     }
-  });
-  return await r.json();
-}
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #111827 0%, #1f2937 45%, #f3f4f6 45%);
+    }
+    header {
+      color: white;
+      padding: 24px 20px 12px;
+      text-align: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: clamp(28px, 6vw, 46px);
+    }
+    header p {
+      margin: 8px 0 0;
+      color: #d1d5db;
+    }
+    main {
+      width: min(900px, 100%);
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .card {
+      background: rgba(255,255,255,0.96);
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 18px 50px rgba(0,0,0,.22);
+      margin-bottom: 16px;
+    }
+    .login-card {
+      width: min(520px, calc(100% - 32px));
+      margin: 32px auto;
+    }
+    .scanner-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 22px;
+      background: #000;
+      aspect-ratio: 4 / 3;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .scan-frame {
+      position: absolute;
+      inset: 22% 12%;
+      border: 4px solid rgba(255,255,255,.92);
+      border-radius: 20px;
+      box-shadow: 0 0 0 999px rgba(0,0,0,.18);
+      pointer-events: none;
+    }
+    .status {
+      margin-top: 12px;
+      padding: 12px 14px;
+      background: #f9fafb;
+      border-radius: 14px;
+      color: #374151;
+      font-weight: 600;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 13px 18px;
+      font-size: 16px;
+      font-weight: 800;
+      background: #111827;
+      color: white;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+    input, select {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 18px;
+      margin-top: 6px;
+      background: white;
+    }
+    label {
+      display: block;
+      font-weight: 800;
+      margin-top: 14px;
+    }
+    .product-name {
+      font-size: clamp(30px, 6vw, 54px);
+      line-height: 1.05;
+      margin: 6px 0;
+      font-weight: 900;
+    }
+    .price {
+      font-size: clamp(42px, 9vw, 78px);
+      font-weight: 950;
+      margin: 8px 0;
+    }
+    .muted { color: #6b7280; }
+    .hidden { display: none !important; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    th { background: #f9fafb; }
+  </style>
+</head>
+<body>
+  <section id="loginScreen" class="card login-card">
+    <h2 style="margin-top:0">Acceso</h2>
+    <p class="muted">Elige cómo quieres entrar.</p>
 
-async function search(){
-  let q = searchInput.value;
+    <button type="button" onclick="entrarInvitado()" style="width:100%; margin-top:10px">Entrar como invitado</button>
 
-  let data;
+    <hr style="margin:22px 0; border:0; border-top:1px solid #e5e7eb">
 
-  if(/^[0-9]+$/.test(q)){
-    data = await api("products?barcode=eq."+q);
-  } else {
-    data = await api("products?name=ilike."+q+"&limit=1");
-  }
+    <label>
+      Usuario
+      <input id="userInput" autocomplete="username" placeholder="ALSARA" />
+    </label>
 
-  if(data.length){
-    product = data[0];
+    <label>
+      Contraseña
+      <input id="passInput" type="password" autocomplete="current-password" placeholder="Contraseña" />
+    </label>
 
-    name.textContent = product.name;
-    barcode.textContent = product.barcode;
-    price.textContent = product.price + " €";
+    <button type="button" onclick="entrarUsuario()" style="width:100%; margin-top:16px">Entrar como usuario</button>
+    <p id="loginError" style="color:#991b1b; font-weight:800"></p>
+  </section>
 
-    resultCard.classList.remove("hidden");
-    editCard.classList.add("hidden");
-  }
-}
+  <section id="appScreen" class="hidden">
+    <header>
+      <h1>Escáner de productos</h1>
+      <p id="modeText">Escanea un código, consulta el precio o crea el producto si no existe.</p>
+    </header>
 
-function edit(){
-  editCard.classList.remove("hidden");
+    <main>
+      <section class="card">
+        <div class="scanner-wrap">
+          <video id="video" muted playsinline></video>
+          <div class="scan-frame"></div>
+        </div>
+        <div id="status" class="status">Pulsa “Iniciar cámara” para empezar.</div>
+        <div class="row" style="margin-top:12px">
+          <button id="startBtn" type="button">Iniciar cámara</button>
+          <button id="updateBtn" type="button" class="secondary">Actualizar</button>
+          <button id="testSupabaseBtn" type="button" class="secondary">Probar conexión</button>
+          <button id="stopBtn" type="button" class="secondary" disabled>Parar cámara</button>
+          <button id="manualBtn" type="button" class="secondary">Introducir código manual</button>
+          <button id="logoutBtn" type="button" class="secondary">Salir</button>
+          <button id="backLoginBtn" type="button" class="secondary">Volver al login</button>
+        </div>
+      </section>
 
-  editName.value = product.name;
-  editPrice.value = product.price;
-  editBarcode.value = product.barcode;
-}
+      <section id="resultCard" class="card hidden">
+        <div class="muted">Producto encontrado</div>
+        <div id="productName" class="product-name"></div>
+        <div id="productBarcode" class="muted"></div>
+        <div id="productPrice" class="price"></div>
+        <div class="row">
+          <button id="scanAgainBtn" type="button">Escanear otro</button>
+          <button id="editBtn" type="button" class="secondary">Editar</button>
+        </div>
+      </section>
 
-async function save(){
+      <section id="createCard" class="card hidden">
+        <h2 id="formTitle">Crear producto</h2>
+        <p class="muted">Este código no está guardado todavía.</p>
+        <form id="productForm">
+          <label>
+            Código de barras
+            <input id="barcodeInput" required />
+          </label>
+          <label>
+            Nombre del producto
+            <input id="nameInput" required placeholder="Ej. Leche entera 1L" />
+          </label>
+          <label>
+            Precio
+            <input id="priceInput" required inputmode="decimal" placeholder="Ej. 1,49" />
+          </label>
+          <label>
+            Moneda
+            <select id="currencyInput">
+              <option value="€">€ Euro</option>
+              <option value="$">$ Dólar</option>
+              <option value="£">£ Libra</option>
+            </select>
+          </label>
+          <div class="row" style="margin-top:16px">
+            <button type="button" id="saveProductBtn">Guardar producto</button>
+            <button type="button" id="cancelFormBtn" class="secondary">Cancelar</button>
+          </div>
+        </form>
+      </section>
 
-  let p = Number(editPrice.value.replace(",","."));
+      <section class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Productos guardados</h2>
+          <div class="row">
+            <button id="exportBtn" type="button" class="secondary">Exportar copia</button>
+            <button id="importBtn" type="button" class="secondary">Importar copia</button>
+            <input id="importFile" type="file" accept="application/json,.json" class="hidden" />
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Producto</th>
+              <th>Precio</th>
+            </tr>
+          </thead>
+          <tbody id="productsTable"></tbody>
+        </table>
+      </section>
+    </main>
+  </section>
 
-  await fetch(URL+"/rest/v1/products?barcode=eq."+product.barcode,{
-    method:"PATCH",
-    headers:{
-      apikey:KEY,
-      Authorization:"Bearer "+KEY,
-      "Content-Type":"application/json"
-    },
-    body:JSON.stringify({
-      name: editName.value,
-      price: p
-    })
-  });
+  <script>
+    const STORAGE_KEY = "barcode_products_v1";
+    const SUPABASE_URL = "https://ttcyrlbgfrfsjiaxhpyy.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y3lybGJnZnJmc2ppYXhocHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTY3OTksImV4cCI6MjA5MjY5Mjc5OX0.cSVVmaQ2vtLZfc4aKr6yirzyaYCv3n4r4Z_5lho0Dzc";
 
-  editCard.classList.add("hidden");
-  search();
-}
+    var userRole = null;
+    var codeReader = null;
+    var currentBarcode = null;
+    var scanning = false;
 
-</script>
+    function el(id) { return document.getElementById(id); }
 
+    function setStatus(text) {
+      if (el("status")) el("status").textContent = text;
+    }
+
+    function entrarInvitado() {
+      userRole = "guest";
+      el("loginScreen").classList.add("hidden");
+      el("appScreen").classList.remove("hidden");
+      el("modeText").textContent = "Modo invitado: puedes escanear y ver productos, pero no crear ni editar.";
+      setStatus("Modo invitado activado.");
+      renderTableFromLocal();
+      loadProductsFromSupabase().catch(function(error) { console.error(error); setStatus("Error cargando Supabase: " + error.message); });
+    }
+
+    function entrarUsuario() {
+      var user = el("userInput").value.trim();
+      var pass = el("passInput").value.trim();
+
+      if (user === "ALSARA" && pass === "alsara22") {
+        userRole = "admin";
+        el("loginError").textContent = "";
+        el("loginScreen").classList.add("hidden");
+        el("appScreen").classList.remove("hidden");
+        el("modeText").textContent = "Modo usuario ALSARA: puedes escanear, crear y editar productos.";
+        setStatus("Modo usuario ALSARA activado.");
+        renderTableFromLocal();
+        loadProductsFromSupabase().catch(function(error) { console.error(error); setStatus("Error cargando Supabase: " + error.message); });
+      } else {
+        el("loginError").textContent = "Usuario o contraseña incorrectos.";
+      }
+    }
+
+    function salir() {
+      stopScanner();
+      userRole = null;
+      el("appScreen").classList.add("hidden");
+      el("loginScreen").classList.remove("hidden");
+      el("passInput").value = "";
+    }
+
+    function loadProducts() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveLocalProduct(product) {
+      var products = loadProducts();
+      products[product.barcode] = product;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+      renderTableFromLocal();
+    }
+
+    function normalizePrice(value) {
+      return String(value).trim().replace(",", ".");
+    }
+
+    function money(product) {
+      var price = Number(product.price);
+      if (Number.isNaN(price)) return product.price + " " + product.currency;
+      return price.toFixed(2).replace(".", ",") + " " + product.currency;
+    }
+
+    function hidePanels() {
+      el("resultCard").classList.add("hidden");
+      el("createCard").classList.add("hidden");
+    }
+
+    function showProduct(product) {
+      hidePanels();
+      currentBarcode = product.barcode;
+      el("productName").textContent = product.name;
+      el("productBarcode").textContent = "Código: " + product.barcode;
+      el("productPrice").textContent = money(product);
+      el("resultCard").classList.remove("hidden");
+      setStatus("Producto encontrado.");
+    }
+
+    function showCreateForm(barcode, product) {
+      if (userRole === "guest") {
+        hidePanels();
+        setStatus("Producto no encontrado. Modo invitado: no puedes crear productos.");
+        return;
+      }
+
+      hidePanels();
+      currentBarcode = barcode;
+      el("barcodeInput").value = barcode;
+      el("nameInput").value = product ? product.name : "";
+      el("priceInput").value = product ? product.price : "";
+      el("currencyInput").value = product ? product.currency : "€";
+      el("formTitle").textContent = product ? "Editar producto" : "Crear producto";
+      el("createCard").classList.remove("hidden");
+      setStatus(product ? "Editando producto." : "Producto no encontrado. Puedes crearlo.");
+    }
+
+    async function supabaseFetch(path, options) {
+      options = options || {};
+      var headers = options.headers || {};
+      headers.apikey = SUPABASE_KEY;
+      headers.Authorization = "Bearer " + SUPABASE_KEY;
+      headers["Content-Type"] = "application/json";
+      if (!headers.Prefer) headers.Prefer = "return=representation";
+
+      var res = await fetch(SUPABASE_URL + "/rest/v1/" + path, {
+        method: options.method || "GET",
+        headers: headers,
+        body: options.body
+      });
+
+      if (!res.ok) {
+        var errorText = await res.text();
+        throw new Error(errorText || "Error Supabase " + res.status);
+      }
+
+      if (res.status === 204) return [];
+      return await res.json();
+    }
+
+    async function getProductFromSupabase(barcode) {
+      var data = await supabaseFetch("products?barcode=eq." + encodeURIComponent(barcode) + "&select=barcode,name,price,currency");
+      return data[0] || null;
+    }
+
+    async function saveProductToSupabase(product) {
+      var data = await supabaseFetch("products?on_conflict=barcode", {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+        body: JSON.stringify(product)
+      });
+      return data[0] || product;
+    }
+
+    async function loadProductsFromSupabase() {
+      // Cargar directamente desde Supabase y pintar en la tabla.
+      var data = await supabaseFetch("products?select=barcode,name,price,currency&order=name.asc&limit=50000");
+
+      var products = {};
+      for (var i = 0; i < data.length; i++) {
+        if (data[i].barcode && data[i].name) {
+          products[data[i].barcode] = data[i];
+        }
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+      renderProductsArray(data);
+      setStatus("Productos cargados desde Supabase: " + data.length);
+    }
+
+    function renderProductsArray(products) {
+      var table = el("productsTable");
+      if (!table) return;
+      table.innerHTML = "";
+
+      if (!products || products.length === 0) {
+        table.innerHTML = '<tr><td colspan="3" class="muted">Supabase responde, pero no ha devuelto productos.</td></tr>';
+        return;
+      }
+
+      for (var i = 0; i < products.length; i++) {
+        (function(product) {
+          var tr = document.createElement("tr");
+          tr.innerHTML = "<td>" + product.barcode + "</td><td>" + product.name + "</td><td>" + money(product) + "</td>";
+          tr.addEventListener("click", function() { showProduct(product); });
+          table.appendChild(tr);
+        })(products[i]);
+      }
+    }
+
+    async function handleBarcode(code) {
+      var barcode = String(code).trim();
+      if (!barcode) return;
+      currentBarcode = barcode;
+      hidePanels();
+      setStatus("Buscando producto…");
+
+      try {
+        var cloudProduct = await getProductFromSupabase(barcode);
+        if (cloudProduct) {
+          saveLocalProduct(cloudProduct);
+          showProduct(cloudProduct);
+          return;
+        }
+      } catch (error) {
+        console.error(error);
+      }
+
+      var localProduct = loadProducts()[barcode];
+      if (localProduct) showProduct(localProduct);
+      else showCreateForm(barcode, null);
+    }
+
+    async function searchAndShow(query) {
+      var q = String(query || "").trim();
+      if (!q) {
+        setStatus("Escribe un código o nombre para buscar.");
+        return;
+      }
+
+      hidePanels();
+      setStatus("Buscando: " + q + "…");
+
+      try {
+        var results = await searchProductsFromSupabase(q);
+        renderSearchResults(results);
+        if (results.length === 1) {
+          showProduct(results[0]);
+        } else if (results.length > 1) {
+          setStatus("Productos encontrados: " + results.length + ". Toca uno para verlo.");
+        } else {
+          if (/^[0-9]+$/.test(q)) showCreateForm(q, null);
+          else setStatus("No se ha encontrado ningún producto con ese nombre.");
+        }
+      } catch (error) {
+        console.error(error);
+        setStatus("Error buscando en Supabase: " + error.message);
+      }
+    }
+
+    async function startScanner() {
+      hidePanels();
+      setStatus("Solicitando acceso a la cámara…");
+
+      try {
+        codeReader = new ZXing.BrowserMultiFormatReader();
+        scanning = true;
+        el("startBtn").disabled = true;
+        el("stopBtn").disabled = false;
+
+        var constraints = { video: { facingMode: { ideal: "environment" } } };
+        setStatus("Escaneando… apunta al código de barras.");
+
+        codeReader.decodeFromConstraints(constraints, el("video"), function(result, error) {
+          if (result && scanning) {
+            if (navigator.vibrate) navigator.vibrate(120);
+            stopScanner();
+            handleBarcode(result.text);
+          }
+        });
+      } catch (error) {
+        console.error(error);
+        setStatus("No se pudo iniciar la cámara. Revisa permisos o usa HTTPS/Safari.");
+        el("startBtn").disabled = false;
+        el("stopBtn").disabled = true;
+      }
+    }
+
+    function stopScanner() {
+      scanning = false;
+      if (codeReader) {
+        codeReader.reset();
+        codeReader = null;
+      }
+      if (el("startBtn")) el("startBtn").disabled = false;
+      if (el("stopBtn")) el("stopBtn").disabled = true;
+    }
+
+    function renderTableFromLocal() {
+      var products = Object.values(loadProducts()).sort(function(a, b) {
+        return a.name.localeCompare(b.name);
+      });
+      var table = el("productsTable");
+      if (!table) return;
+      table.innerHTML = "";
+
+      if (products.length === 0) {
+        table.innerHTML = '<tr><td colspan="3" class="muted">Todavía no hay productos guardados.</td></tr>';
+        return;
+      }
+
+      for (var i = 0; i < products.length; i++) {
+        (function(product) {
+          var tr = document.createElement("tr");
+          tr.innerHTML = "<td>" + product.barcode + "</td><td>" + product.name + "</td><td>" + money(product) + "</td>";
+          tr.addEventListener("click", function() { showProduct(product); });
+          table.appendChild(tr);
+        })(products[i]);
+      }
+    }
+
+    async function saveProductFromForm() {
+      if (userRole !== "admin") {
+        setStatus("Modo invitado: no puedes guardar productos.");
+        return;
+      }
+
+      var barcode = el("barcodeInput").value.trim();
+      var name = el("nameInput").value.trim();
+      var priceText = normalizePrice(el("priceInput").value);
+      var currency = el("currencyInput").value;
+
+      if (!barcode || !name || !priceText) {
+        setStatus("Rellena todos los campos.");
+        return;
+      }
+
+      var priceNumber = Number(priceText);
+      if (Number.isNaN(priceNumber)) {
+        setStatus("El precio no es válido. Ejemplo correcto: 1,50");
+        return;
+      }
+
+      var product = { barcode: barcode, name: name, price: priceNumber, currency: currency };
+      el("saveProductBtn").disabled = true;
+      saveLocalProduct(product);
+      showProduct(product);
+      setStatus("Producto guardado en esta página. Subiendo a Supabase…");
+
+      try {
+        var saved = await saveProductToSupabase(product);
+        saveLocalProduct(saved);
+        showProduct(saved);
+        setStatus("Producto guardado en Supabase correctamente.");
+      } catch (error) {
+        console.error(error);
+        setStatus("Guardado solo en esta página. Supabase falló: " + error.message);
+      } finally {
+        el("saveProductBtn").disabled = false;
+      }
+    }
+
+    function setupButtons() {
+      el("startBtn").onclick = startScanner;
+      el("stopBtn").onclick = function() { stopScanner(); setStatus("Cámara parada."); };
+      el("updateBtn").onclick = async function() {
+        setStatus("Actualizando productos desde la nube…");
+        try {
+          await loadProductsFromSupabase();
+          setStatus("Productos actualizados. Total en esta página: " + Object.keys(loadProducts()).length);
+        } catch (error) {
+          console.error(error);
+          setStatus("No se pudo actualizar desde la nube: " + error.message);
+        }
+      };
+
+      el("testSupabaseBtn").onclick = async function() {
+        setStatus("Probando conexión con Supabase…");
+        try {
+          var data = await supabaseFetch("products?select=barcode,name,price,currency&limit=5");
+          var products = loadProducts();
+          for (var i = 0; i < data.length; i++) {
+            products[data[i].barcode] = data[i];
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+          renderTableFromLocal();
+          renderProductsArray(data);
+          setStatus("Conexión OK. Mostrando prueba: " + data.length + ". Primero: " + (data[0] ? data[0].name : "ninguno"));
+        } catch (error) {
+          console.error(error);
+          setStatus("Error de conexión Supabase: " + error.message);
+        }
+      };
+
+      el("manualBtn").onclick = function() {
+        var query = prompt("Introduce código de barras o nombre del producto:");
+        if (query) searchAndShow(query);
+      };
+      el("searchBtn").onclick = function() {
+        searchAndShow(el("searchInput").value);
+      };
+      el("searchInput").onkeydown = function(event) {
+        if (event.key === "Enter") searchAndShow(el("searchInput").value);
+      };
+      el("clearSearchBtn").onclick = function() {
+        el("searchInput").value = "";
+        el("searchResults").innerHTML = "";
+        hidePanels();
+        setStatus("Búsqueda limpiada.");
+      };
+      el("logoutBtn").onclick = salir;
+      el("backLoginBtn").onclick = function() {
+        stopScanner();
+        userRole = null;
+        el("appScreen").classList.add("hidden");
+        el("loginScreen").classList.remove("hidden");
+        setStatus("Has vuelto a la pantalla de acceso.");
+      };
+      el("scanAgainBtn").onclick = startScanner;
+      el("editPriceBtn").onclick = quickEditPrice;
+      el("editBtn").onclick = function() {
+        if (userRole === "guest") {
+          setStatus("Modo invitado: no puedes editar productos.");
+          return;
+        }
+        if (!currentBarcode) return;
+        showCreateForm(currentBarcode, loadProducts()[currentBarcode]);
+      };
+      el("saveProductBtn").onclick = saveProductFromForm;
+      el("cancelFormBtn").onclick = function() { hidePanels(); setStatus("Formulario cancelado."); };
+      el("productForm").onsubmit = function(event) { event.preventDefault(); saveProductFromForm(); };
+      el("exportBtn").onclick = function() {
+        var data = JSON.stringify(loadProducts(), null, 2);
+        var blob = new Blob([data], { type: "application/json" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        var date = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = "copia-productos-" + date + ".json";
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus("Copia exportada. Guárdala en Archivos o iCloud Drive.");
+      };
+      el("importBtn").onclick = function() { el("importFile").click(); };
+      el("importFile").onchange = async function() {
+        var file = el("importFile").files[0];
+        if (!file) return;
+        try {
+          var imported = JSON.parse(await file.text());
+          if (!imported || typeof imported !== "object" || Array.isArray(imported)) throw new Error("Formato incorrecto");
+          var merged = Object.assign({}, loadProducts(), imported);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          renderTableFromLocal();
+          setStatus("Copia importada correctamente.");
+        } catch (error) {
+          setStatus("No se pudo importar la copia. Revisa que sea un archivo JSON válido.");
+        }
+        el("importFile").value = "";
+      };
+      el("passInput").onkeydown = function(event) {
+        if (event.key === "Enter") entrarUsuario();
+      };
+    }
+
+    setupButtons();
+
+    setInterval(function() {
+      if (userRole) loadProductsFromSupabase().catch(function(error) { console.error(error); setStatus("Error cargando Supabase: " + error.message); });
+    }, 5000);
+  </script>
 </body>
-</html
+</html>
