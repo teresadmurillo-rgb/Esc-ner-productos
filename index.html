@@ -3,21 +3,65 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Escáner productos</title>
+<title>ALSARA</title>
 
 <script src="https://unpkg.com/@zxing/library@latest"></script>
 
 <style>
-body { font-family: Arial; margin:0; background:#f3f4f6; }
-.card { background:white; padding:16px; margin:10px; border-radius:10px; }
+body {
+  margin:0;
+  font-family: Arial;
+  background: linear-gradient(180deg, #b91c1c 0%, #dc2626 45%, #f3f4f6 45%);
+}
+
+h1 {
+  color:white;
+  text-align:center;
+  margin:20px 0;
+}
+
+.card {
+  background:white;
+  padding:16px;
+  margin:10px;
+  border-radius:12px;
+}
+
 .hidden { display:none; }
-button { padding:10px; border-radius:8px; border:0; margin:5px; }
-.secondary { background:#ddd; }
-.status { margin-top:10px; }
+
+button {
+  padding:10px;
+  border-radius:8px;
+  border:0;
+  margin:5px;
+  background:#111;
+  color:white;
+}
+
+.secondary {
+  background:#ddd;
+  color:black;
+}
+
+input {
+  display:block;
+  width:100%;
+  padding:10px;
+  margin-top:10px;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+#status {
+  margin:10px;
+  font-weight:bold;
+}
 </style>
 </head>
 
 <body>
+
+<h1>ALSARA</h1>
 
 <!-- LOGIN -->
 <div id="loginScreen" class="card">
@@ -47,32 +91,39 @@ button { padding:10px; border-radius:8px; border:0; margin:5px; }
   <p id="productBarcode"></p>
   <h1 id="productPrice"></h1>
 
-  <button id="editPriceBtn">Cambiar precio</button>
+  <button onclick="openEdit()">Editar</button>
 </div>
 
-<!-- EDITAR PRECIO -->
-<div id="quickPriceCard" class="card hidden">
-  <h3>Cambiar precio</h3>
-  <p id="quickPriceProductName"></p>
+<div id="editCard" class="card hidden">
+  <h3>Editar producto</h3>
 
-  <input id="quickPriceInput">
+  <label>Nombre</label>
+  <input id="editName">
 
-  <button id="saveQuickPriceBtn">Guardar</button>
-  <button id="cancelQuickPriceBtn" class="secondary">Cancelar</button>
+  <label>Precio</label>
+  <input id="editPrice">
+
+  <label>Código</label>
+  <input id="editBarcode" disabled>
+
+  <button onclick="saveEdit()">Guardar</button>
 </div>
 
-<div id="status" class="status"></div>
+<div id="status"></div>
 
 </div>
 
 <script>
-const SUPABASE_URL = "https://ttcyrlbgfrfsjiaxhpyy.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y3lybGJnZnJmc2ppYXhocHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTY3OTksImV4cCI6MjA5MjY5Mjc5OX0.cSVVmaQ2vtLZfc4aKr6yirzyaYCv3n4r4Z_5lho0Dzc";
+
+const URL = "https://ttcyrlbgfrfsjiaxhpyy.supabase.co";
+const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y3lybGJnZnJmc2ppYXhocHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTY3OTksImV4cCI6MjA5MjY5Mjc5OX0.cSVVmaQ2vtLZfc4aKr6yirzyaYCv3n4r4Z_5lho0Dzc";
 
 let userRole = null;
-let currentBarcode = null;
+let currentProduct = null;
 
-function setStatus(t){ document.getElementById("status").textContent = t; }
+function setStatus(t){
+  document.getElementById("status").textContent = t;
+}
 
 function enterGuest(){
   userRole="guest";
@@ -86,83 +137,101 @@ function enterUser(){
     loginScreen.classList.add("hidden");
     appScreen.classList.remove("hidden");
   } else {
-    loginError.textContent="Error";
+    loginError.textContent="Usuario o contraseña incorrectos";
   }
 }
 
-async function supabaseFetch(path){
-  const res = await fetch(SUPABASE_URL+"/rest/v1/"+path,{
+async function fetchAPI(path){
+  let res = await fetch(URL+"/rest/v1/"+path,{
     headers:{
-      apikey:SUPABASE_KEY,
-      Authorization:"Bearer "+SUPABASE_KEY
+      apikey:KEY,
+      Authorization:"Bearer "+KEY
     }
   });
   return await res.json();
 }
 
 function showProduct(p){
-  currentBarcode=p.barcode;
-  productName.textContent=p.name;
-  productBarcode.textContent=p.barcode;
-  productPrice.textContent=p.price+" €";
+  currentProduct = p;
+
+  productName.textContent = p.name;
+  productBarcode.textContent = p.barcode;
+  productPrice.textContent = p.price + " €";
+
   resultCard.classList.remove("hidden");
+  editCard.classList.add("hidden");
 }
 
 async function searchAndShow(){
-  let q=searchInput.value;
+  let q = searchInput.value.trim();
+
+  if(!q){
+    setStatus("Escribe algo para buscar");
+    return;
+  }
 
   let data;
 
   if(/^[0-9]+$/.test(q)){
-    data = await supabaseFetch("products?barcode=eq."+q);
+    data = await fetchAPI("products?barcode=eq."+q);
   } else {
-    data = await supabaseFetch("products?name=ilike.*"+q+"*&limit=1");
+    data = await fetchAPI("products?name=ilike."+q+"&limit=1");
   }
 
   if(data.length){
     showProduct(data[0]);
+    setStatus("Producto encontrado");
   } else {
     setStatus("No encontrado");
   }
 }
 
-function openQuickPriceEditor(){
+function openEdit(){
   if(userRole!=="admin"){
     setStatus("No permitido");
     return;
   }
 
-  quickPriceCard.classList.remove("hidden");
-  quickPriceProductName.textContent = productName.textContent;
-  quickPriceInput.value = productPrice.textContent.replace(" €","");
-}
-
-async function saveQuickPrice(){
-  let newPrice = Number(quickPriceInput.value.replace(",","."));
-
-  if(isNaN(newPrice)){
-    setStatus("Precio incorrecto");
+  if(!currentProduct){
+    setStatus("Busca un producto primero");
     return;
   }
 
-  await fetch(SUPABASE_URL+"/rest/v1/products?barcode=eq."+currentBarcode,{
-    method:"PATCH",
-    headers:{
-      apikey:SUPABASE_KEY,
-      Authorization:"Bearer "+SUPABASE_KEY,
-      "Content-Type":"application/json"
-    },
-    body:JSON.stringify({price:newPrice})
-  });
+  editCard.classList.remove("hidden");
 
-  setStatus("Precio actualizado");
-  quickPriceCard.classList.add("hidden");
-  searchAndShow();
+  editName.value = currentProduct.name;
+  editPrice.value = currentProduct.price;
+  editBarcode.value = currentProduct.barcode;
 }
 
-editPriceBtn.onclick=openQuickPriceEditor;
-saveQuickPriceBtn.onclick=saveQuickPrice;
-cancelQuickPriceBtn.onclick=()=>quickPriceCard.classList.add("hidden");
+async function saveEdit(){
+
+  let price = Number(String(editPrice.value).replace(",","."));
+
+  if(isNaN(price)){
+    setStatus("Precio no válido");
+    return;
+  }
+
+  await fetch(URL+"/rest/v1/products?barcode=eq."+currentProduct.barcode,{
+    method:"PATCH",
+    headers:{
+      apikey:KEY,
+      Authorization:"Bearer "+KEY,
+      "Content-Type":"application/json"
+    },
+    body:JSON.stringify({
+      name: editName.value,
+      price: price
+    })
+  });
+
+  setStatus("Guardado correctamente");
+
+  editCard.classList.add("hidden");
+
+  searchAndShow();
+}
 
 </script>
 
