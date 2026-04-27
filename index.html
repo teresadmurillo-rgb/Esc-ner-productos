@@ -118,6 +118,11 @@
       color: #111827;
     }
 
+    button.danger {
+      background: #991b1b;
+      color: white;
+    }
+
     button:disabled {
       opacity: .5;
       cursor: not-allowed;
@@ -150,6 +155,19 @@
       font-size: clamp(42px, 9vw, 78px);
       font-weight: 950;
       margin: 8px 0;
+    }
+
+    .account-line {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .account-line strong {
+      white-space: nowrap;
     }
 
     .muted { color: #6b7280; }
@@ -221,6 +239,25 @@
         </div>
       </section>
 
+      <section id="accountCard" class="card">
+        <h2 style="margin-top:0">Hacer cuenta</h2>
+        <p class="muted">Cada producto escaneado o seleccionado se suma automáticamente.</p>
+
+        <div id="accountItems" class="status">Todavía no hay productos en la cuenta.</div>
+
+        <label>
+          Varios / precio manual
+          <input id="manualAmountInput" inputmode="decimal" placeholder="Ej. 2,50" />
+        </label>
+
+        <div class="row" style="margin-top:12px">
+          <button id="addManualAmountBtn" type="button">Añadir varios</button>
+          <button id="clearAccountBtn" type="button" class="secondary">Vaciar cuenta</button>
+        </div>
+
+        <div class="price" id="accountTotal">Total: 0,00 €</div>
+      </section>
+
       <section class="card">
         <h2 style="margin-top:0">Buscar producto</h2>
 
@@ -284,6 +321,7 @@
     var codeReader = null;
     var currentBarcode = null;
     var scanning = false;
+    var accountItems = [];
 
     function el(id) {
       return document.getElementById(id);
@@ -297,8 +335,9 @@
       userRole = "guest";
       el("loginScreen").classList.add("hidden");
       el("appScreen").classList.remove("hidden");
-      el("modeText").textContent = "Modo invitado: puedes escanear y ver productos.";
+      el("modeText").textContent = "Modo invitado: puedes escanear, buscar y hacer cuentas.";
       setStatus("Modo invitado activado.");
+      renderAccount();
     }
 
     function entrarUsuario() {
@@ -310,8 +349,9 @@
         el("loginError").textContent = "";
         el("loginScreen").classList.add("hidden");
         el("appScreen").classList.remove("hidden");
-        el("modeText").textContent = "Modo usuario ALSARA: puedes escanear, crear y editar productos.";
+        el("modeText").textContent = "Modo usuario ALSARA: puedes escanear, crear, editar y hacer cuentas.";
         setStatus("Modo usuario ALSARA activado.");
+        renderAccount();
       } else {
         el("loginError").textContent = "Usuario o contraseña incorrectos.";
       }
@@ -369,8 +409,80 @@
       el("productPrice").textContent = money(product);
 
       el("resultCard").classList.remove("hidden");
-      setStatus("Producto encontrado.");
+      addProductToAccount(product);
+      setStatus("Producto encontrado y añadido a la cuenta.");
       el("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function addProductToAccount(product) {
+      var price = Number(product.price);
+      if (Number.isNaN(price)) price = 0;
+
+      accountItems.push({
+        name: product.name || "Producto",
+        price: price
+      });
+
+      renderAccount();
+    }
+
+    function addManualAmount() {
+      var raw = el("manualAmountInput").value.trim().replace(",", ".");
+      var amount = Number(raw);
+
+      if (Number.isNaN(amount) || amount <= 0) {
+        setStatus("Introduce un precio válido en Varios. Ejemplo: 2,50");
+        return;
+      }
+
+      accountItems.push({
+        name: "Varios",
+        price: amount
+      });
+
+      el("manualAmountInput").value = "";
+      renderAccount();
+      setStatus("Varios añadido a la cuenta.");
+    }
+
+    function clearAccount() {
+      accountItems = [];
+      renderAccount();
+      setStatus("Cuenta vaciada.");
+    }
+
+    function removeAccountItem(index) {
+      accountItems.splice(index, 1);
+      renderAccount();
+    }
+
+    function renderAccount() {
+      var box = el("accountItems");
+      var totalBox = el("accountTotal");
+      if (!box || !totalBox) return;
+
+      if (accountItems.length === 0) {
+        box.innerHTML = "Todavía no hay productos en la cuenta.";
+        totalBox.textContent = "Total: 0,00 €";
+        return;
+      }
+
+      var total = 0;
+      var html = "";
+
+      for (var i = 0; i < accountItems.length; i++) {
+        total += accountItems[i].price;
+
+        html +=
+          "<div class='account-line'>" +
+            "<span>" + accountItems[i].name + "</span>" +
+            "<strong>" + accountItems[i].price.toFixed(2).replace(".", ",") + " €</strong>" +
+            "<button type='button' class='secondary' style='padding:6px 10px' onclick='removeAccountItem(" + i + ")'>Quitar</button>" +
+          "</div>";
+      }
+
+      box.innerHTML = html;
+      totalBox.textContent = "Total: " + total.toFixed(2).replace(".", ",") + " €";
     }
 
     function showCreateForm(barcode, product) {
@@ -679,6 +791,14 @@
         hidePanels();
         setStatus("Búsqueda limpiada.");
       };
+
+      el("addManualAmountBtn").onclick = addManualAmount;
+
+      el("manualAmountInput").onkeydown = function(event) {
+        if (event.key === "Enter") addManualAmount();
+      };
+
+      el("clearAccountBtn").onclick = clearAccount;
 
       el("scanAgainBtn").onclick = startScanner;
 
