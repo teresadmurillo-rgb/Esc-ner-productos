@@ -1,3 +1,4 @@
+}
 <!doctype html>
 <html lang="es">
 <head>
@@ -5,55 +6,67 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ALSARA</title>
 
-<script src="https://unpkg.com/@zxing/library@latest"></script>
-
 <style>
 body {
   margin:0;
-  font-family: Arial;
+  font-family: system-ui;
   background: linear-gradient(180deg, #b91c1c 0%, #dc2626 45%, #f3f4f6 45%);
 }
 
-h1 {
-  color:white;
+header {
   text-align:center;
-  margin:20px 0;
+  color:white;
+  padding:20px;
+}
+
+header h1 {
+  font-size:40px;
+  margin:0;
 }
 
 .card {
   background:white;
+  margin:16px;
   padding:16px;
-  margin:10px;
-  border-radius:12px;
+  border-radius:20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 
-.hidden { display:none; }
+input {
+  width:100%;
+  padding:14px;
+  border-radius:12px;
+  border:1px solid #ddd;
+  font-size:18px;
+}
 
 button {
-  padding:10px;
-  border-radius:8px;
+  padding:14px;
+  border-radius:12px;
   border:0;
-  margin:5px;
+  font-weight:bold;
+  font-size:16px;
+}
+
+.primary {
   background:#111;
   color:white;
 }
 
 .secondary {
-  background:#ddd;
-  color:black;
+  background:#eee;
 }
 
-input {
-  display:block;
-  width:100%;
-  padding:10px;
+.row {
+  display:flex;
+  gap:10px;
   margin-top:10px;
-  border-radius:8px;
-  border:1px solid #ccc;
 }
 
-#status {
-  margin:10px;
+.hidden { display:none; }
+
+.price {
+  font-size:50px;
   font-weight:bold;
 }
 </style>
@@ -61,159 +74,90 @@ input {
 
 <body>
 
-<h1>ALSARA</h1>
-
-<!-- LOGIN -->
-<div id="loginScreen" class="card">
-  <h2>Acceso</h2>
-
-  <button onclick="enterGuest()">Entrar como invitado</button>
-
-  <hr>
-
-  <input id="userInput" placeholder="Usuario">
-  <input id="passInput" type="password" placeholder="Contraseña">
-
-  <button onclick="enterUser()">Entrar</button>
-  <p id="loginError"></p>
-</div>
-
-<!-- APP -->
-<div id="appScreen" class="hidden">
+<header>
+  <h1>ALSARA</h1>
+</header>
 
 <div class="card">
   <input id="searchInput" placeholder="Buscar por código o nombre">
-  <button onclick="searchAndShow()">Buscar</button>
+  <div class="row">
+    <button class="primary" onclick="search()">Buscar</button>
+  </div>
 </div>
 
 <div id="resultCard" class="card hidden">
-  <h2 id="productName"></h2>
-  <p id="productBarcode"></p>
-  <h1 id="productPrice"></h1>
+  <h2 id="name"></h2>
+  <p id="barcode"></p>
+  <div id="price" class="price"></div>
 
-  <button onclick="openEdit()">Editar</button>
+  <button class="primary" onclick="edit()">Editar</button>
 </div>
 
 <div id="editCard" class="card hidden">
   <h3>Editar producto</h3>
 
-  <label>Nombre</label>
   <input id="editName">
-
-  <label>Precio</label>
   <input id="editPrice">
-
-  <label>Código</label>
   <input id="editBarcode" disabled>
 
-  <button onclick="saveEdit()">Guardar</button>
-</div>
-
-<div id="status"></div>
-
+  <div class="row">
+    <button class="primary" onclick="save()">Guardar</button>
+  </div>
 </div>
 
 <script>
 
 const URL = "https://ttcyrlbgfrfsjiaxhpyy.supabase.co";
-const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y3lybGJnZnJmc2ppYXhocHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTY3OTksImV4cCI6MjA5MjY5Mjc5OX0.cSVVmaQ2vtLZfc4aKr6yirzyaYCv3n4r4Z_5lho0Dzc";
+const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // tu key
 
-let userRole = null;
-let currentProduct = null;
+let product = null;
 
-function setStatus(t){
-  document.getElementById("status").textContent = t;
-}
-
-function enterGuest(){
-  userRole="guest";
-  loginScreen.classList.add("hidden");
-  appScreen.classList.remove("hidden");
-}
-
-function enterUser(){
-  if(userInput.value==="ALSARA" && passInput.value==="alsara22"){
-    userRole="admin";
-    loginScreen.classList.add("hidden");
-    appScreen.classList.remove("hidden");
-  } else {
-    loginError.textContent="Usuario o contraseña incorrectos";
-  }
-}
-
-async function fetchAPI(path){
-  let res = await fetch(URL+"/rest/v1/"+path,{
+async function api(path){
+  let r = await fetch(URL+"/rest/v1/"+path,{
     headers:{
       apikey:KEY,
       Authorization:"Bearer "+KEY
     }
   });
-  return await res.json();
+  return await r.json();
 }
 
-function showProduct(p){
-  currentProduct = p;
-
-  productName.textContent = p.name;
-  productBarcode.textContent = p.barcode;
-  productPrice.textContent = p.price + " €";
-
-  resultCard.classList.remove("hidden");
-  editCard.classList.add("hidden");
-}
-
-async function searchAndShow(){
-  let q = searchInput.value.trim();
-
-  if(!q){
-    setStatus("Escribe algo para buscar");
-    return;
-  }
+async function search(){
+  let q = searchInput.value;
 
   let data;
 
   if(/^[0-9]+$/.test(q)){
-    data = await fetchAPI("products?barcode=eq."+q);
+    data = await api("products?barcode=eq."+q);
   } else {
-    data = await fetchAPI("products?name=ilike."+q+"&limit=1");
+    data = await api("products?name=ilike."+q+"&limit=1");
   }
 
   if(data.length){
-    showProduct(data[0]);
-    setStatus("Producto encontrado");
-  } else {
-    setStatus("No encontrado");
+    product = data[0];
+
+    name.textContent = product.name;
+    barcode.textContent = product.barcode;
+    price.textContent = product.price + " €";
+
+    resultCard.classList.remove("hidden");
+    editCard.classList.add("hidden");
   }
 }
 
-function openEdit(){
-  if(userRole!=="admin"){
-    setStatus("No permitido");
-    return;
-  }
-
-  if(!currentProduct){
-    setStatus("Busca un producto primero");
-    return;
-  }
-
+function edit(){
   editCard.classList.remove("hidden");
 
-  editName.value = currentProduct.name;
-  editPrice.value = currentProduct.price;
-  editBarcode.value = currentProduct.barcode;
+  editName.value = product.name;
+  editPrice.value = product.price;
+  editBarcode.value = product.barcode;
 }
 
-async function saveEdit(){
+async function save(){
 
-  let price = Number(String(editPrice.value).replace(",","."));
+  let p = Number(editPrice.value.replace(",","."));
 
-  if(isNaN(price)){
-    setStatus("Precio no válido");
-    return;
-  }
-
-  await fetch(URL+"/rest/v1/products?barcode=eq."+currentProduct.barcode,{
+  await fetch(URL+"/rest/v1/products?barcode=eq."+product.barcode,{
     method:"PATCH",
     headers:{
       apikey:KEY,
@@ -222,18 +166,15 @@ async function saveEdit(){
     },
     body:JSON.stringify({
       name: editName.value,
-      price: price
+      price: p
     })
   });
 
-  setStatus("Guardado correctamente");
-
   editCard.classList.add("hidden");
-
-  searchAndShow();
+  search();
 }
 
 </script>
 
 </body>
-</html>
+</html
