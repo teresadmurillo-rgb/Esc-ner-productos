@@ -8,221 +8,64 @@
   <meta name="theme-color" content="#b91c1c" />
   <title>ALSARA</title>
   <script src="https://unpkg.com/@zxing/library@latest"></script>
-
   <style>
-    :root {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: #111827;
-      background: #f3f4f6;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: linear-gradient(180deg, #b91c1c 0%, #dc2626 45%, #f3f4f6 45%);
-    }
-
-    header {
-      color: white;
-      padding: 24px 20px 12px;
-      text-align: center;
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: clamp(36px, 8vw, 64px);
-      font-weight: 950;
-      letter-spacing: 2px;
-    }
-
-    header p {
-      margin: 8px 0 0;
-      color: #fee2e2;
-      font-weight: 700;
-    }
-
-    main {
-      width: min(900px, 100%);
-      margin: 0 auto;
-      padding: 16px;
-    }
-
-    .card {
-      background: rgba(255,255,255,0.96);
-      border-radius: 24px;
-      padding: 18px;
-      box-shadow: 0 18px 50px rgba(0,0,0,.22);
-      margin-bottom: 16px;
-    }
-
-    .login-card {
-      width: min(520px, calc(100% - 32px));
-      margin: 32px auto;
-    }
-
-    .scanner-wrap {
-      position: relative;
-      overflow: hidden;
-      border-radius: 22px;
-      background: #000;
-      aspect-ratio: 4 / 3;
-    }
-
-    video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    .scan-frame {
-      position: absolute;
-      inset: 22% 12%;
-      border: 4px solid rgba(255,255,255,.92);
-      border-radius: 20px;
-      box-shadow: 0 0 0 999px rgba(0,0,0,.18);
-      pointer-events: none;
-    }
-
-    .status {
-      margin-top: 12px;
-      padding: 12px 14px;
-      background: #f9fafb;
-      border-radius: 14px;
-      color: #374151;
-      font-weight: 600;
-    }
-
-    .row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    button {
-      border: 0;
-      border-radius: 14px;
-      padding: 13px 18px;
-      font-size: 16px;
-      font-weight: 800;
-      background: #111827;
-      color: white;
-      cursor: pointer;
-    }
-
-    button.secondary {
-      background: #e5e7eb;
-      color: #111827;
-    }
-
-    button.danger {
-      background: #991b1b;
-      color: white;
-    }
-
-    button:disabled {
-      opacity: .5;
-      cursor: not-allowed;
-    }
-
-    input, select {
-      width: 100%;
-      border: 1px solid #d1d5db;
-      border-radius: 14px;
-      padding: 14px;
-      font-size: 18px;
-      margin-top: 6px;
-      background: white;
-    }
-
-    label {
-      display: block;
-      font-weight: 800;
-      margin-top: 14px;
-    }
-
-    .product-name {
-      font-size: clamp(30px, 6vw, 54px);
-      line-height: 1.05;
-      margin: 6px 0;
-      font-weight: 900;
-    }
-
-    .price {
-      font-size: clamp(42px, 9vw, 78px);
-      font-weight: 950;
-      margin: 8px 0;
-    }
-
-    .account-line {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 10px;
-      align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px solid #e5e7eb;
-    }
-
-    .account-line strong {
-      white-space: nowrap;
-    }
-
-    .muted { color: #6b7280; }
-    .hidden { display: none !important; }
+    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:#111827; background:#f3f4f6; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:linear-gradient(180deg,#b91c1c 0%,#dc2626 45%,#f3f4f6 45%); }
+    header { color:white; padding:24px 20px 12px; text-align:center; }
+    header h1 { margin:0; font-size:clamp(36px,8vw,64px); font-weight:950; letter-spacing:2px; }
+    header p { margin:8px 0 0; color:#fee2e2; font-weight:700; }
+    main { width:min(900px,100%); margin:0 auto; padding:16px; }
+    .card { background:rgba(255,255,255,.96); border-radius:24px; padding:18px; box-shadow:0 18px 50px rgba(0,0,0,.22); margin-bottom:16px; }
+    .login-card { width:min(520px,calc(100% - 32px)); margin:32px auto; }
+    .scanner-wrap { position:relative; overflow:hidden; border-radius:22px; background:#000; aspect-ratio:4/3; }
+    video { width:100%; height:100%; object-fit:cover; display:block; }
+    .scan-frame { position:absolute; inset:22% 12%; border:4px solid rgba(255,255,255,.92); border-radius:20px; box-shadow:0 0 0 999px rgba(0,0,0,.18); pointer-events:none; }
+    .status { margin-top:12px; padding:12px 14px; background:#f9fafb; border-radius:14px; color:#374151; font-weight:600; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    button { border:0; border-radius:14px; padding:13px 18px; font-size:16px; font-weight:800; background:#111827; color:white; cursor:pointer; }
+    button.secondary { background:#e5e7eb; color:#111827; }
+    button.danger { background:#991b1b; color:white; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    input, select { width:100%; border:1px solid #d1d5db; border-radius:14px; padding:14px; font-size:18px; margin-top:6px; background:white; }
+    label { display:block; font-weight:800; margin-top:14px; }
+    .product-name { font-size:clamp(30px,6vw,54px); line-height:1.05; margin:6px 0; font-weight:900; }
+    .price { font-size:clamp(42px,9vw,78px); font-weight:950; margin:8px 0; }
+    .account-line { display:grid; grid-template-columns:1fr auto auto; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid #e5e7eb; }
+    .account-line strong { white-space:nowrap; }
+    .muted { color:#6b7280; }
+    .hidden { display:none !important; }
   </style>
 </head>
-
 <body>
   <section id="loginScreen" class="card login-card">
     <h2 style="margin-top:0">Acceso</h2>
-    <p class="muted">Elige cómo quieres entrar.</p>
-
-    <button type="button" onclick="entrarInvitado()" style="width:100%; margin-top:10px">
-      Entrar como invitado
-    </button>
-
+    <p class="muted">Elige cÃ³mo quieres entrar.</p>
+    <button type="button" onclick="entrarInvitado()" style="width:100%; margin-top:10px">Entrar como invitado</button>
     <hr style="margin:22px 0; border:0; border-top:1px solid #e5e7eb">
-
-    <label>
-      Usuario
-      <input id="userInput" autocomplete="username" placeholder="ALSARA" />
-    </label>
-
-    <label>
-      Contraseña
-      <input id="passInput" type="password" autocomplete="current-password" placeholder="Contraseña" />
-    </label>
-
-    <button type="button" onclick="entrarUsuario()" style="width:100%; margin-top:16px">
-      Entrar como usuario
-    </button>
-
+    <label>Usuario<input id="userInput" autocomplete="username" placeholder="ALSARA" /></label>
+    <label>ContraseÃ±a<input id="passInput" type="password" autocomplete="current-password" placeholder="ContraseÃ±a" /></label>
+    <button type="button" onclick="entrarUsuario()" style="width:100%; margin-top:16px">Entrar como usuario</button>
     <p id="loginError" style="color:#991b1b; font-weight:800"></p>
   </section>
 
   <section id="appScreen" class="hidden">
     <header>
       <h1>ALSARA</h1>
-      <p id="modeText">Escanea o busca productos por código o nombre.</p>
+      <p id="modeText">Escanea o busca productos por cÃ³digo o nombre.</p>
     </header>
-
     <main>
       <section class="card">
         <div class="scanner-wrap">
           <video id="video" muted playsinline></video>
           <div class="scan-frame"></div>
         </div>
-
-        <div id="status" class="status">Pulsa “Iniciar cámara” para empezar.</div>
-
+        <div id="status" class="status">Pulsa âIniciar cÃ¡maraâ para empezar.</div>
         <div class="row" style="margin-top:12px">
-          <button id="startBtn" type="button">Iniciar cámara</button>
+          <button id="startBtn" type="button">Iniciar cÃ¡mara</button>
           <button id="updateBtn" type="button" class="secondary">Actualizar</button>
-          <button id="stopBtn" type="button" class="secondary" disabled>Parar cámara</button>
-          <button id="manualBtn" type="button" class="secondary">Introducir código manual</button>
+          <button id="stopBtn" type="button" class="secondary" disabled>Parar cÃ¡mara</button>
+          <button id="manualBtn" type="button" class="secondary">Introducir cÃ³digo manual</button>
           <button id="backLoginBtn" type="button" class="secondary">Volver al login</button>
         </div>
       </section>
@@ -232,7 +75,6 @@
         <div id="productName" class="product-name"></div>
         <div id="productBarcode" class="muted"></div>
         <div id="productPrice" class="price"></div>
-
         <div class="row">
           <button id="scanAgainBtn" type="button">Escanear otro</button>
           <button id="editBtn" type="button" class="secondary">Editar</button>
@@ -241,68 +83,43 @@
 
       <section id="accountCard" class="card">
         <h2 style="margin-top:0">Hacer cuenta</h2>
-        <p class="muted">Cada producto escaneado o seleccionado se suma automáticamente.</p>
-
-        <div id="accountItems" class="status">Todavía no hay productos en la cuenta.</div>
-
-        <label>
-          Varios / precio manual
-          <input id="manualAmountInput" inputmode="decimal" placeholder="Ej. 2,50" />
-        </label>
-
+        <p class="muted">Cada producto escaneado o seleccionado se suma automÃ¡ticamente.</p>
+        <div id="accountItems" class="status">TodavÃ­a no hay productos en la cuenta.</div>
+        <label>Varios / precio manual<input id="manualAmountInput" inputmode="decimal" placeholder="Ej. 2,50" /></label>
         <div class="row" style="margin-top:12px">
-          <button id="addManualAmountBtn" type="button">Añadir varios</button>
+          <button id="addManualAmountBtn" type="button">AÃ±adir varios</button>
           <button id="clearAccountBtn" type="button" class="secondary">Vaciar cuenta</button>
         </div>
 
-        <div class="price" id="accountTotal">Total: 0,00 €</div>
+        <button id="ticketBtn" type="button" style="width:100%; margin-top:12px">ð§¾ Sacar ticket</button>
+
+        <div class="price" id="accountTotal">Total: 0,00 â¬</div>
       </section>
 
       <section class="card">
         <h2 style="margin-top:0">Buscar producto</h2>
-
-        <label>
-          Código o nombre
-          <input id="searchInput" placeholder="Ej. 8412345678901 o Coca Cola" />
-        </label>
-
+        <label>CÃ³digo o nombre<input id="searchInput" placeholder="Ej. 8412345678901 o Coca Cola" /></label>
         <div class="row" style="margin-top:12px">
           <button id="searchBtn" type="button">Buscar</button>
           <button id="clearSearchBtn" type="button" class="secondary">Limpiar</button>
         </div>
-
         <div id="searchResults" style="margin-top:14px"></div>
       </section>
 
       <section id="createCard" class="card hidden">
         <h2 id="formTitle">Crear producto</h2>
-        <p class="muted">Los campos aparecerán rellenos al editar un producto existente.</p>
-
+        <p class="muted">Los campos aparecerÃ¡n rellenos al editar un producto existente.</p>
         <form id="productForm">
-          <label>
-            Código de barras
-            <input id="barcodeInput" required />
-          </label>
-
-          <label>
-            Nombre del producto
-            <input id="nameInput" required placeholder="Ej. Leche entera 1L" />
-          </label>
-
-          <label>
-            Precio
-            <input id="priceInput" required inputmode="decimal" placeholder="Ej. 1,49" />
-          </label>
-
-          <label>
-            Moneda
+          <label>CÃ³digo de barras<input id="barcodeInput" required /></label>
+          <label>Nombre del producto<input id="nameInput" required placeholder="Ej. Leche entera 1L" /></label>
+          <label>Precio<input id="priceInput" required inputmode="decimal" placeholder="Ej. 1,49" /></label>
+          <label>Moneda
             <select id="currencyInput">
-              <option value="€">€ Euro</option>
-              <option value="$">$ Dólar</option>
-              <option value="£">£ Libra</option>
+              <option value="â¬">â¬ Euro</option>
+              <option value="$">$ DÃ³lar</option>
+              <option value="Â£">Â£ Libra</option>
             </select>
           </label>
-
           <div class="row" style="margin-top:16px">
             <button type="button" id="saveProductBtn">Guardar producto</button>
             <button type="button" id="cancelFormBtn" class="secondary">Cancelar</button>
@@ -316,22 +133,12 @@
     const STORAGE_KEY = "barcode_products_v1";
     const SUPABASE_URL = "https://ttcyrlbgfrfsjiaxhpyy.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Y3lybGJnZnJmc2ppYXhocHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTY3OTksImV4cCI6MjA5MjY5Mjc5OX0.cSVVmaQ2vtLZfc4aKr6yirzyaYCv3n4r4Z_5lho0Dzc";
+    var userRole = null, codeReader = null, currentBarcode = null, scanning = false, accountItems = [];
 
-    var userRole = null;
-    var codeReader = null;
-    var currentBarcode = null;
-    var scanning = false;
-    var accountItems = [];
+    function el(id){ return document.getElementById(id); }
+    function setStatus(text){ if(el("status")) el("status").textContent = text; }
 
-    function el(id) {
-      return document.getElementById(id);
-    }
-
-    function setStatus(text) {
-      if (el("status")) el("status").textContent = text;
-    }
-
-    function entrarInvitado() {
+    function entrarInvitado(){
       userRole = "guest";
       el("loginScreen").classList.add("hidden");
       el("appScreen").classList.remove("hidden");
@@ -340,11 +147,9 @@
       renderAccount();
     }
 
-    function entrarUsuario() {
-      var user = el("userInput").value.trim();
-      var pass = el("passInput").value.trim();
-
-      if (user === "ALSARA" && pass === "alsara22") {
+    function entrarUsuario(){
+      var user = el("userInput").value.trim(), pass = el("passInput").value.trim();
+      if(user === "ALSARA" && pass === "alsara22"){
         userRole = "admin";
         el("loginError").textContent = "";
         el("loginScreen").classList.add("hidden");
@@ -353,15 +158,13 @@
         setStatus("Modo usuario ALSARA activado.");
         renderAccount();
       } else {
-        el("loginError").textContent = "Usuario o contraseña incorrectos.";
+        el("loginError").textContent = "Usuario o contraseÃ±a incorrectos.";
       }
     }
 
-    function volverLogin() {
+    function volverLogin(){
       stopScanner();
-      userRole = null;
-      currentBarcode = null;
-      hidePanels();
+      userRole = null; currentBarcode = null; hidePanels();
       el("searchInput").value = "";
       el("searchResults").innerHTML = "";
       el("passInput").value = "";
@@ -369,481 +172,324 @@
       el("loginScreen").classList.remove("hidden");
     }
 
-    function loadProducts() {
-      try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-      } catch (e) {
-        return {};
-      }
-    }
+    function loadProducts(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch(e){ return {}; } }
+    function saveLocalProduct(product){ var products = loadProducts(); products[product.barcode] = product; localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); }
+    function normalizePrice(value){ return String(value).trim().replace(",", "."); }
+    function money(product){ var price = Number(product.price); if(Number.isNaN(price)) return product.price + " " + product.currency; return price.toFixed(2).replace(".", ",") + " " + product.currency; }
+    function hidePanels(){ el("resultCard").classList.add("hidden"); el("createCard").classList.add("hidden"); }
 
-    function saveLocalProduct(product) {
-      var products = loadProducts();
-      products[product.barcode] = product;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-    }
-
-    function normalizePrice(value) {
-      return String(value).trim().replace(",", ".");
-    }
-
-    function money(product) {
-      var price = Number(product.price);
-      if (Number.isNaN(price)) return product.price + " " + product.currency;
-      return price.toFixed(2).replace(".", ",") + " " + product.currency;
-    }
-
-    function hidePanels() {
-      el("resultCard").classList.add("hidden");
-      el("createCard").classList.add("hidden");
-    }
-
-    function showProduct(product) {
+    function showProduct(product){
       hidePanels();
-
       currentBarcode = product.barcode;
       saveLocalProduct(product);
-
       el("productName").textContent = product.name;
-      el("productBarcode").textContent = "Código: " + product.barcode;
+      el("productBarcode").textContent = "CÃ³digo: " + product.barcode;
       el("productPrice").textContent = money(product);
-
       el("resultCard").classList.remove("hidden");
       addProductToAccount(product);
-      setStatus("Producto encontrado y añadido a la cuenta.");
-      el("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
+      setStatus("Producto encontrado y aÃ±adido a la cuenta.");
+      el("resultCard").scrollIntoView({ behavior:"smooth", block:"start" });
     }
 
-    function addProductToAccount(product) {
+    function addProductToAccount(product){
       var price = Number(product.price);
-      if (Number.isNaN(price)) price = 0;
-
-      accountItems.push({
-        name: product.name || "Producto",
-        price: price
-      });
-
+      if(Number.isNaN(price)) price = 0;
+      accountItems.push({ name: product.name || "Producto", price: price });
       renderAccount();
     }
 
-    function addManualAmount() {
-      var raw = el("manualAmountInput").value.trim().replace(",", ".");
-      var amount = Number(raw);
-
-      if (Number.isNaN(amount) || amount <= 0) {
-        setStatus("Introduce un precio válido en Varios. Ejemplo: 2,50");
-        return;
-      }
-
-      accountItems.push({
-        name: "Varios",
-        price: amount
-      });
-
+    function addManualAmount(){
+      var amount = Number(el("manualAmountInput").value.trim().replace(",", "."));
+      if(Number.isNaN(amount) || amount <= 0){ setStatus("Introduce un precio vÃ¡lido en Varios. Ejemplo: 2,50"); return; }
+      accountItems.push({ name:"Varios", price: amount });
       el("manualAmountInput").value = "";
       renderAccount();
-      setStatus("Varios añadido a la cuenta.");
+      setStatus("Varios aÃ±adido a la cuenta.");
     }
 
-    function clearAccount() {
-      accountItems = [];
-      renderAccount();
-      setStatus("Cuenta vaciada.");
-    }
+    function clearAccount(){ accountItems = []; renderAccount(); setStatus("Cuenta vaciada."); }
+    function removeAccountItem(index){ accountItems.splice(index, 1); renderAccount(); }
 
-    function removeAccountItem(index) {
-      accountItems.splice(index, 1);
-      renderAccount();
-    }
-
-    function renderAccount() {
-      var box = el("accountItems");
-      var totalBox = el("accountTotal");
-      if (!box || !totalBox) return;
-
-      if (accountItems.length === 0) {
-        box.innerHTML = "Todavía no hay productos en la cuenta.";
-        totalBox.textContent = "Total: 0,00 €";
+    function renderAccount(){
+      var box = el("accountItems"), totalBox = el("accountTotal");
+      if(!box || !totalBox) return;
+      if(accountItems.length === 0){
+        box.innerHTML = "TodavÃ­a no hay productos en la cuenta.";
+        totalBox.textContent = "Total: 0,00 â¬";
         return;
       }
-
-      var total = 0;
-      var html = "";
-
-      for (var i = 0; i < accountItems.length; i++) {
+      var total = 0, html = "";
+      for(var i=0; i<accountItems.length; i++){
         total += accountItems[i].price;
-
-        html +=
-          "<div class='account-line'>" +
-            "<span>" + accountItems[i].name + "</span>" +
-            "<strong>" + accountItems[i].price.toFixed(2).replace(".", ",") + " €</strong>" +
-            "<button type='button' class='secondary' style='padding:6px 10px' onclick='removeAccountItem(" + i + ")'>Quitar</button>" +
-          "</div>";
+        html += "<div class='account-line'><span>" + accountItems[i].name + "</span><strong>" + accountItems[i].price.toFixed(2).replace(".", ",") + " â¬</strong><button type='button' class='secondary' style='padding:6px 10px' onclick='removeAccountItem(" + i + ")'>Quitar</button></div>";
       }
-
       box.innerHTML = html;
-      totalBox.textContent = "Total: " + total.toFixed(2).replace(".", ",") + " €";
+      totalBox.textContent = "Total: " + total.toFixed(2).replace(".", ",") + " â¬";
     }
 
-    function showCreateForm(barcode, product) {
-      if (userRole === "guest") {
-        hidePanels();
-        setStatus("Modo invitado: no puedes crear ni editar productos.");
-        return;
-      }
-
+    function showCreateForm(barcode, product){
+      if(userRole === "guest"){ hidePanels(); setStatus("Modo invitado: no puedes crear ni editar productos."); return; }
       hidePanels();
-
       currentBarcode = barcode;
-
       el("barcodeInput").value = product ? product.barcode : barcode;
       el("nameInput").value = product ? product.name : "";
       el("priceInput").value = product ? product.price : "";
-      el("currencyInput").value = product ? product.currency : "€";
-
+      el("currencyInput").value = product ? product.currency : "â¬";
       el("formTitle").textContent = product ? "Editar producto" : "Crear producto";
       el("createCard").classList.remove("hidden");
-
       setStatus(product ? "Edita los campos que quieras." : "Producto no encontrado. Puedes crearlo.");
-      el("createCard").scrollIntoView({ behavior: "smooth", block: "start" });
+      el("createCard").scrollIntoView({ behavior:"smooth", block:"start" });
     }
 
-    async function supabaseFetch(path, options) {
+    async function supabaseFetch(path, options){
       options = options || {};
-
       var headers = options.headers || {};
       headers.apikey = SUPABASE_KEY;
       headers.Authorization = "Bearer " + SUPABASE_KEY;
       headers["Content-Type"] = "application/json";
-
-      if (!headers.Prefer) headers.Prefer = "return=representation";
-
-      var res = await fetch(SUPABASE_URL + "/rest/v1/" + path, {
-        method: options.method || "GET",
-        headers: headers,
-        body: options.body
-      });
-
-      if (!res.ok) {
-        var errorText = await res.text();
-        throw new Error(errorText || "Error Supabase " + res.status);
-      }
-
-      if (res.status === 204) return [];
+      if(!headers.Prefer) headers.Prefer = "return=representation";
+      var res = await fetch(SUPABASE_URL + "/rest/v1/" + path, { method: options.method || "GET", headers: headers, body: options.body });
+      if(!res.ok){ var errorText = await res.text(); throw new Error(errorText || "Error Supabase " + res.status); }
+      if(res.status === 204) return [];
       return await res.json();
     }
 
-    async function getProductFromSupabase(barcode) {
-      var data = await supabaseFetch(
-        "products?barcode=eq." +
-        encodeURIComponent(barcode) +
-        "&select=barcode,name,price,currency"
-      );
-
+    async function getProductFromSupabase(barcode){
+      var data = await supabaseFetch("products?barcode=eq." + encodeURIComponent(barcode) + "&select=barcode,name,price,currency");
       return data[0] || null;
     }
 
-    async function saveProductToSupabase(product) {
+    async function saveProductToSupabase(product){
       var data = await supabaseFetch("products?on_conflict=barcode", {
-        method: "POST",
-        headers: {
-          Prefer: "resolution=merge-duplicates,return=representation"
-        },
+        method:"POST",
+        headers:{ Prefer:"resolution=merge-duplicates,return=representation" },
         body: JSON.stringify(product)
       });
-
       return data[0] || product;
     }
 
-    async function searchProductsFromSupabase(query) {
+    async function searchProductsFromSupabase(query){
       var q = String(query || "").trim();
-      if (!q) return [];
-
-      if (/^[0-9]+$/.test(q)) {
-        return await supabaseFetch(
-          "products?select=barcode,name,price,currency&barcode=eq." +
-          encodeURIComponent(q) +
-          "&limit=20"
-        );
+      if(!q) return [];
+      if(/^[0-9]+$/.test(q)){
+        return await supabaseFetch("products?select=barcode,name,price,currency&barcode=eq." + encodeURIComponent(q) + "&limit=20");
       }
-
-      return await supabaseFetch(
-        "products?select=barcode,name,price,currency&name=ilike.*" +
-        encodeURIComponent(q) +
-        "*&order=name.asc&limit=20"
-      );
+      return await supabaseFetch("products?select=barcode,name,price,currency&name=ilike.*" + encodeURIComponent(q) + "*&order=name.asc&limit=20");
     }
 
-    function renderSearchResults(products) {
+    function renderSearchResults(products){
       var box = el("searchResults");
-      if (!box) return;
-
+      if(!box) return;
       box.innerHTML = "";
-
-      if (!products || products.length === 0) {
-        box.innerHTML = '<div class="status">No se ha encontrado ningún producto.</div>';
+      if(!products || products.length === 0){
+        box.innerHTML = '<div class="status">No se ha encontrado ningÃºn producto.</div>';
         return;
       }
-
-      for (var i = 0; i < products.length; i++) {
-        (function(product) {
+      for(var i=0; i<products.length; i++){
+        (function(product){
           var div = document.createElement("div");
           div.className = "status";
           div.style.cursor = "pointer";
-          div.innerHTML =
-            "<strong>" + product.name + "</strong><br>" +
-            "Código: " + product.barcode + "<br>" +
-            "Precio: " + money(product);
-
-          div.onclick = function() {
-            showProduct(product);
-          };
-
+          div.innerHTML = "<strong>" + product.name + "</strong><br>CÃ³digo: " + product.barcode + "<br>Precio: " + money(product);
+          div.onclick = function(){ showProduct(product); };
           box.appendChild(div);
         })(products[i]);
       }
     }
 
-    async function handleBarcode(code) {
+    async function handleBarcode(code){
       var barcode = String(code).trim();
-      if (!barcode) return;
-
+      if(!barcode) return;
       currentBarcode = barcode;
       hidePanels();
-      setStatus("Buscando producto…");
-
+      setStatus("Buscando productoâ¦");
       try {
         var cloudProduct = await getProductFromSupabase(barcode);
-
-        if (cloudProduct) {
-          showProduct(cloudProduct);
-          return;
-        }
-      } catch (error) {
-        console.error(error);
-      }
-
+        if(cloudProduct){ showProduct(cloudProduct); return; }
+      } catch(error){ console.error(error); }
       var localProduct = loadProducts()[barcode];
-
-      if (localProduct) {
-        showProduct(localProduct);
-      } else {
-        showCreateForm(barcode, null);
-      }
+      if(localProduct) showProduct(localProduct);
+      else showCreateForm(barcode, null);
     }
 
-    async function searchAndShow(query) {
+    async function searchAndShow(query){
       var q = String(query || "").trim();
-
-      if (!q) {
-        setStatus("Escribe un código o nombre para buscar.");
-        return;
-      }
-
+      if(!q){ setStatus("Escribe un cÃ³digo o nombre para buscar."); return; }
       hidePanels();
-      setStatus("Buscando: " + q + "…");
-
+      setStatus("Buscando: " + q + "â¦");
       try {
         var results = await searchProductsFromSupabase(q);
         renderSearchResults(results);
-
-        if (results.length === 1) {
-          showProduct(results[0]);
-        } else if (results.length > 1) {
-          setStatus("Productos encontrados: " + results.length + ". Toca uno para verlo.");
-        } else {
-          if (/^[0-9]+$/.test(q)) {
-            showCreateForm(q, null);
-          } else {
-            setStatus("No se ha encontrado ningún producto con ese nombre.");
-          }
+        if(results.length === 1) showProduct(results[0]);
+        else if(results.length > 1) setStatus("Productos encontrados: " + results.length + ". Toca uno para verlo.");
+        else {
+          if(/^[0-9]+$/.test(q)) showCreateForm(q, null);
+          else setStatus("No se ha encontrado ningÃºn producto con ese nombre.");
         }
-      } catch (error) {
+      } catch(error){
         console.error(error);
         setStatus("Error buscando en Supabase: " + error.message);
       }
     }
 
-    async function startScanner() {
+    async function startScanner(){
       hidePanels();
-      setStatus("Solicitando acceso a la cámara…");
-
+      setStatus("Solicitando acceso a la cÃ¡maraâ¦");
       try {
         codeReader = new ZXing.BrowserMultiFormatReader();
         scanning = true;
-
         el("startBtn").disabled = true;
         el("stopBtn").disabled = false;
-
-        var constraints = {
-          video: {
-            facingMode: { ideal: "environment" }
-          }
-        };
-
-        setStatus("Escaneando… apunta al código de barras.");
-
-        codeReader.decodeFromConstraints(constraints, el("video"), function(result, error) {
-          if (result && scanning) {
-            if (navigator.vibrate) navigator.vibrate(120);
+        var constraints = { video: { facingMode: { ideal: "environment" } } };
+        setStatus("Escaneandoâ¦ apunta al cÃ³digo de barras.");
+        codeReader.decodeFromConstraints(constraints, el("video"), function(result, error){
+          if(result && scanning){
+            if(navigator.vibrate) navigator.vibrate(120);
             stopScanner();
             handleBarcode(result.text);
           }
         });
-      } catch (error) {
+      } catch(error){
         console.error(error);
-        setStatus("No se pudo iniciar la cámara. Revisa permisos o usa HTTPS/Safari.");
+        setStatus("No se pudo iniciar la cÃ¡mara. Revisa permisos o usa HTTPS/Safari.");
         el("startBtn").disabled = false;
         el("stopBtn").disabled = true;
       }
     }
 
-    function stopScanner() {
+    function stopScanner(){
       scanning = false;
-
-      if (codeReader) {
-        codeReader.reset();
-        codeReader = null;
-      }
-
-      if (el("startBtn")) el("startBtn").disabled = false;
-      if (el("stopBtn")) el("stopBtn").disabled = true;
+      if(codeReader){ codeReader.reset(); codeReader = null; }
+      if(el("startBtn")) el("startBtn").disabled = false;
+      if(el("stopBtn")) el("stopBtn").disabled = true;
     }
 
-    async function saveProductFromForm() {
-      if (userRole !== "admin") {
-        setStatus("Modo invitado: no puedes guardar productos.");
-        return;
-      }
-
+    async function saveProductFromForm(){
+      if(userRole !== "admin"){ setStatus("Modo invitado: no puedes guardar productos."); return; }
       var barcode = el("barcodeInput").value.trim();
       var name = el("nameInput").value.trim();
       var priceText = normalizePrice(el("priceInput").value);
       var currency = el("currencyInput").value;
-
-      if (!barcode || !name || !priceText) {
-        setStatus("Rellena código, nombre y precio.");
-        return;
-      }
-
+      if(!barcode || !name || !priceText){ setStatus("Rellena cÃ³digo, nombre y precio."); return; }
       var priceNumber = Number(priceText);
-
-      if (Number.isNaN(priceNumber)) {
-        setStatus("El precio no es válido. Ejemplo correcto: 1,50");
-        return;
-      }
-
-      var product = {
-        barcode: barcode,
-        name: name,
-        price: priceNumber,
-        currency: currency
-      };
-
+      if(Number.isNaN(priceNumber)){ setStatus("El precio no es vÃ¡lido. Ejemplo correcto: 1,50"); return; }
+      var product = { barcode: barcode, name: name, price: priceNumber, currency: currency };
       el("saveProductBtn").disabled = true;
-      setStatus("Guardando producto…");
-
+      setStatus("Guardando productoâ¦");
       try {
         var saved = await saveProductToSupabase(product);
         saveLocalProduct(saved);
         showProduct(saved);
         setStatus("Producto guardado correctamente.");
-      } catch (error) {
+      } catch(error){
         console.error(error);
         saveLocalProduct(product);
         showProduct(product);
-        setStatus("Guardado solo en esta página. Supabase falló: " + error.message);
+        setStatus("Guardado solo en esta pÃ¡gina. Supabase fallÃ³: " + error.message);
       } finally {
         el("saveProductBtn").disabled = false;
       }
     }
 
-    function setupButtons() {
+
+    function generarTicket() {
+      if (accountItems.length === 0) {
+        setStatus("No hay nada en la cuenta.");
+        return;
+      }
+
+      var canvas = document.createElement("canvas");
+      var ctx = canvas.getContext("2d");
+
+      var width = 420;
+      var lineHeight = 30;
+      var height = 150 + accountItems.length * lineHeight;
+
+      canvas.width = width;
+      canvas.height = height;
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.fillStyle = "#000000";
+      ctx.font = "bold 28px monospace";
+      ctx.fillText("ALSARA", 145, 36);
+
+      ctx.font = "15px monospace";
+      ctx.fillText(new Date().toLocaleString("es-ES"), 20, 68);
+      ctx.fillText("--------------------------------", 20, 92);
+
+      var y = 120;
+      var total = 0;
+
+      for (var i = 0; i < accountItems.length; i++) {
+        var item = accountItems[i];
+        var price = Number(item.price);
+        if (Number.isNaN(price)) price = 0;
+        total += price;
+
+        var name = String(item.name || "Producto");
+        if (name.length > 24) name = name.substring(0, 24);
+
+        var priceText = price.toFixed(2).replace(".", ",") + " â¬";
+
+        ctx.font = "15px monospace";
+        ctx.fillText(name, 20, y);
+        ctx.fillText(priceText, 310, y);
+
+        y += lineHeight;
+      }
+
+      ctx.fillText("--------------------------------", 20, y);
+      y += lineHeight;
+
+      ctx.font = "bold 22px monospace";
+      ctx.fillText("TOTAL:", 20, y);
+      ctx.fillText(total.toFixed(2).replace(".", ",") + " â¬", 285, y);
+
+      y += 35;
+      ctx.font = "14px monospace";
+      ctx.fillText("Gracias por su compra", 105, y);
+
+      var link = document.createElement("a");
+      link.download = "ticket-alsara.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+
+      setStatus("Ticket generado.");
+    }
+
+    function setupButtons(){
       el("startBtn").onclick = startScanner;
-
-      el("stopBtn").onclick = function() {
-        stopScanner();
-        setStatus("Cámara parada.");
-      };
-
-      el("updateBtn").onclick = function() {
-        setStatus("Actualizado. Busca por código, nombre o escanea un producto.");
-      };
-
-      el("manualBtn").onclick = function() {
-        var query = prompt("Introduce código de barras o nombre del producto:");
-        if (query) searchAndShow(query);
-      };
-
+      el("stopBtn").onclick = function(){ stopScanner(); setStatus("CÃ¡mara parada."); };
+      el("updateBtn").onclick = function(){ setStatus("Actualizado. Busca por cÃ³digo, nombre o escanea un producto."); };
+      el("manualBtn").onclick = function(){ var query = prompt("Introduce cÃ³digo de barras o nombre del producto:"); if(query) searchAndShow(query); };
       el("backLoginBtn").onclick = volverLogin;
-
-      el("searchBtn").onclick = function() {
-        searchAndShow(el("searchInput").value);
-      };
-
-      el("searchInput").onkeydown = function(event) {
-        if (event.key === "Enter") searchAndShow(el("searchInput").value);
-      };
-
-      el("clearSearchBtn").onclick = function() {
-        el("searchInput").value = "";
-        el("searchResults").innerHTML = "";
-        hidePanels();
-        setStatus("Búsqueda limpiada.");
-      };
-
+      el("searchBtn").onclick = function(){ searchAndShow(el("searchInput").value); };
+      el("searchInput").onkeydown = function(event){ if(event.key === "Enter") searchAndShow(el("searchInput").value); };
+      el("clearSearchBtn").onclick = function(){ el("searchInput").value = ""; el("searchResults").innerHTML = ""; hidePanels(); setStatus("BÃºsqueda limpiada."); };
       el("addManualAmountBtn").onclick = addManualAmount;
-
-      el("manualAmountInput").onkeydown = function(event) {
-        if (event.key === "Enter") addManualAmount();
-      };
-
+      el("manualAmountInput").onkeydown = function(event){ if(event.key === "Enter") addManualAmount(); };
       el("clearAccountBtn").onclick = clearAccount;
-
+      el("ticketBtn").onclick = generarTicket;
       el("scanAgainBtn").onclick = startScanner;
-
-      el("editBtn").onclick = async function() {
-        if (userRole === "guest") {
-          setStatus("Modo invitado: no puedes editar productos.");
-          return;
-        }
-
-        if (!currentBarcode) return;
-
+      el("editBtn").onclick = async function(){
+        if(userRole === "guest"){ setStatus("Modo invitado: no puedes editar productos."); return; }
+        if(!currentBarcode) return;
         var product = loadProducts()[currentBarcode];
-
-        if (!product) {
+        if(!product){
           try {
             product = await getProductFromSupabase(currentBarcode);
-            if (product) saveLocalProduct(product);
-          } catch (error) {
-            console.error(error);
-          }
+            if(product) saveLocalProduct(product);
+          } catch(error){ console.error(error); }
         }
-
-        if (product) {
-          showCreateForm(currentBarcode, product);
-          setStatus("Edita los campos que quieras.");
-        } else {
-          setStatus("No se pudo cargar el producto para editar.");
-        }
+        if(product){ showCreateForm(currentBarcode, product); setStatus("Edita los campos que quieras."); }
+        else setStatus("No se pudo cargar el producto para editar.");
       };
-
       el("saveProductBtn").onclick = saveProductFromForm;
-
-      el("cancelFormBtn").onclick = function() {
-        hidePanels();
-        setStatus("Formulario cancelado.");
-      };
-
-      el("productForm").onsubmit = function(event) {
-        event.preventDefault();
-        saveProductFromForm();
-      };
-
-      el("passInput").onkeydown = function(event) {
-        if (event.key === "Enter") entrarUsuario();
-      };
+      el("cancelFormBtn").onclick = function(){ hidePanels(); setStatus("Formulario cancelado."); };
+      el("productForm").onsubmit = function(event){ event.preventDefault(); saveProductFromForm(); };
+      el("passInput").onkeydown = function(event){ if(event.key === "Enter") entrarUsuario(); };
     }
 
     setupButtons();
